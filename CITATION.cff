@@ -1,0 +1,52 @@
+cff-version: 1.2.0
+message: "If you use this package, please cite the methodological papers listed under references as well as the software."
+title: "ivmte: instrumental variables and marginal treatment effects in Python"
+type: software
+authors:
+  - family-names: Ronczewski
+    given-names: Alex
+license: GPL-3.0-or-later
+repository-code: "https://github.com/alexronczewski/pymte"
+abstract: >-
+  A Python port of the R package ivmte by Joshua Shea and Alexander
+  Torgovitsky, implementing the marginal treatment effect framework of
+  Mogstad, Santos and Torgovitsky (2018).
+references:
+  - type: article
+    title: "Using Instrumental Variables for Inference About Policy Relevant Treatment Parameters"
+    authors:
+      - family-names: Mogstad
+        given-names: Magne
+      - family-names: Santos
+        given-names: Andres
+      - family-names: Torgovitsky
+        given-names: Alexander
+    journal: Econometrica
+    volume: 86
+    issue: 5
+    start: 1589
+    end: 1619
+    year: 2018
+    doi: 10.3982/ECTA15463
+  - type: article
+    title: "ivmte: An R Package for Extrapolating Instrumental Variable Estimates Away From Compliers"
+    authors:
+      - family-names: Shea
+        given-names: Joshua
+      - family-names: Torgovitsky
+        given-names: Alexander
+    journal: Observational Studies
+    volume: 9
+    issue: 2
+    start: 1
+    end: 42
+    year: 2023
+  - type: software
+    title: "ivmte: Instrumental Variables: Extrapolation by Marginal Treatment Effects"
+    authors:
+      - family-names: Shea
+        given-names: Joshua
+      - family-names: Torgovitsky
+        given-names: Alexander
+    repository-code: "https://github.com/jkcshea/ivmte"
+    license: GPL-3.0

@@ -1,0 +1,99 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ivmte"
+version = "0.1.0.dev0"
+description = "Instrumental variables: extrapolation by marginal treatment effects"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Alex Ronczewski" }]
+keywords = [
+    "econometrics",
+    "instrumental variables",
+    "marginal treatment effects",
+    "partial identification",
+    "treatment effects",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.11",
+    "pandas>=2.0",
+    "statsmodels>=0.14",
+    "formulaic>=1.0",
+    "cvxpy>=1.4",
+    "clarabel>=0.6",
+]
+
+[project.optional-dependencies]
+plots = ["matplotlib>=3.7"]
+mosek = ["mosek>=10"]
+gurobi = ["gurobipy>=10"]
+docs = [
+    "sphinx>=7",
+    "pydata-sphinx-theme>=0.15",
+    "myst-nb>=1.0",
+    "numpydoc>=1.6",
+    "matplotlib>=3.7",
+]
+dev = [
+    "pytest>=7",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pandas-stubs",
+]
+
+[project.urls]
+Homepage = "https://github.com/alexronczewski/pymte"
+Documentation = "https://ivmte.readthedocs.io"
+"R package" = "https://github.com/jkcshea/ivmte"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ivmte"]
+
+[tool.ruff]
+line-length = 99
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "NPY", "D"]
+ignore = ["E501", "D105", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+"docs/*" = ["D"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+files = ["src/ivmte"]
+strict = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["scipy.*", "statsmodels.*", "formulaic.*", "cvxpy.*", "matplotlib.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "oracle_live: compares against a live R run; requires Rscript and the R ivmte package",
+    "slow: takes more than a few seconds",
+]
