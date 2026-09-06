@@ -103,6 +103,7 @@ extract <- function(r) {
 }
 
 run_case <- function(name, args) {
+  if (!grepl(FILTER, name)) return(invisible(NULL))
   cat(sprintf("== %s\n", name))
   args$solver <- SOLVER
   args$noisy <- FALSE
@@ -372,6 +373,10 @@ run_case("sim_spec_test_boot50", list(
   data = ivmteSimData, ivlike = y ~ d + factor(z), target = "ate",
   m0 = ~ u, m1 = ~ u, m0.dec = TRUE, m1.dec = TRUE,
   propensity = d ~ factor(z), bootstraps = 50))
+
+run_case("sim_lp_spec_test_boot50", list(
+  data = ivmteSimData, ivlike = y ~ d + factor(z), target = "ate",
+  m0 = ~ u, m1 = ~ u, propensity = d ~ factor(z), point = FALSE, bootstraps = 50))
 
 run_case("sim_late_boot50", list(
   data = ivmteSimData, ivlike = y ~ d + z + d * z, target = "late",
