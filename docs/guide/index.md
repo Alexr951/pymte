@@ -12,4 +12,5 @@ shape-restrictions
 audit
 confidence-intervals
 specification-tests
+plotting
 ```

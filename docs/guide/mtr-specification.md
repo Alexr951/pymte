@@ -67,6 +67,23 @@ If `u` is already a column in the data, choose another name with `uname`:
 ivmte(..., m0="~ v + I(v**2) + yob", m1="~ v + yob", uname="v")
 ```
 
+## Specifying terms without formulas
+
+The same specification can be given as an explicit list of terms, each a
+u-part (an integer exponent or a `USpline`) times a data column (`None` for
+a constant). This is convenient when the specification is generated
+programmatically:
+
+```{code-cell} python
+from ivmte import USpline
+
+terms = [(0, None), (1, None), (0, "yob"), (USpline(degree=1, knots=[.2, .4, .6, .8]), None)]
+# equivalent to "~ u + yob + uSplines(degree=1, knots=[.2, .4, .6, .8])"
+```
+
+Term lists are accepted wherever a formula is, including `m0` and `m1` in
+`ivmte()`.
+
 ## Working with specifications directly
 
 `MTRSpec` parses a formula against a data frame and exposes the structure
