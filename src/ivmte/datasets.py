@@ -8,7 +8,7 @@ import pandas as pd
 
 
 def _read(name: str) -> pd.DataFrame:
-    with files("ivmte").joinpath("data", name).open("rb") as fh:
+    with files("ivmte").joinpath("data").joinpath(name).open("rb") as fh:
         return pd.read_csv(fh, compression="gzip")
 
 
@@ -49,7 +49,7 @@ def load_sim_data() -> pd.DataFrame:
     Notes
     -----
     The data were generated in R with ``set.seed(1)``; the generating code is
-    reproduced in ``ivmte/data/PROVENANCE.md``. We ship the R draw rather than
-    re-simulating in Python so that results match the R package exactly.
+    reproduced in ``ivmte/data/PROVENANCE.md``. We ship the R draw itself, so
+    results match the R package exactly; NumPy and R random streams differ.
     """
     return _read("ivmte_sim_data.csv.gz")
