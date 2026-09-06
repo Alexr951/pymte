@@ -194,7 +194,7 @@ class MTRSpec:
         data: pd.DataFrame,
         uname: str = "u",
     ) -> MTRSpec:
-        """Build a specification from explicit terms instead of a formula.
+        """Build a specification from an explicit list of terms.
 
         Parameters
         ----------
