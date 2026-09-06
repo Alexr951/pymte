@@ -40,7 +40,29 @@ pip install "pymte[plots]"   # matplotlib for plot_mtr, plot_mte, plot_weights
 import pymte
 
 ae = pymte.load_ae()
+r = pymte.ivmte(
+    ae,
+    target="att",
+    m0="~ u + yob",
+    m1="~ u + yob",
+    ivlike="worked ~ morekids + samesex + morekids*samesex",
+    propensity="morekids ~ samesex + yob",
+)
+print(r)
 ```
+
+```
+Bounds on the target parameter: [-0.1028836, -0.07818869]
+Audit terminated successfully after 1 round(s)
+MTR coefficients: 6
+Independent/total moments: 4/4
+Minimum criterion: 0
+Solver: highs
+```
+
+Add `bootstraps=50` for confidence regions, `point=True` for GMM when the
+model is point identified, or replace `ivlike` with `outcome="worked"` for
+the regression approach.
 
 The full user guide, a theory primer and the API reference are on
 [Read the Docs](https://pymte.readthedocs.io).
