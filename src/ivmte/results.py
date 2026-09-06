@@ -29,12 +29,20 @@ def _to_plain(obj: Any) -> Any:
     return obj
 
 
+def _ci_lines(ci: pd.DataFrame) -> list[str]:
+    return [
+        f"    {float(level):.0%}: [{_fmt(row['lower'])}, {_fmt(row['upper'])}]"
+        for level, row in zip(ci.index.to_numpy(dtype=float), ci.to_dict("records"), strict=True)
+    ]
+
+
 @dataclass
 class IVMTEResult:
     """Estimates, bounds and diagnostics from :func:`ivmte.ivmte`.
 
     Exactly one of ``bounds`` and ``point_estimate`` is set. Attribute names
-    follow the R package with dots replaced by underscores.
+    follow the R package with dots replaced by underscores. The inference
+    attributes are filled when ``bootstraps > 0``.
 
     Attributes
     ----------
@@ -63,7 +71,8 @@ class IVMTEResult:
     criterion : float or None
         Minimum criterion (partially identified case).
     j_test : dict or None
-        Hansen J statistic, degrees of freedom and p-value (GMM case).
+        Hansen J statistic, degrees of freedom, asymptotic p-value and, after
+        a bootstrap, ``bootstrap_p_value`` (GMM case).
     specs : tuple of MTRSpec
         The parsed ``m0`` and ``m1`` specifications.
     target_gammas : TargetGammas
@@ -76,6 +85,34 @@ class IVMTEResult:
         Progress log.
     options : dict
         The call's options.
+    bootstraps, bootstraps_failed : int
+        Number of bootstrap replicates used and of draws that failed.
+    bounds_bootstraps : numpy.ndarray or None
+        Bootstrap bounds, shape ``(B, 2)``.
+    bounds_se : numpy.ndarray or None
+        Standard errors of the two bounds.
+    bounds_ci : dict or None
+        ``"backward"`` and ``"forward"`` confidence regions, one row per
+        level.
+    p_value : dict or None
+        p-values for a zero target: ``backward``/``forward`` (bounds) or
+        ``nonparametric``/``parametric`` (point estimate).
+    specification_p_value : float or None
+        Bootstrap p-value of the misspecification test (partially identified
+        moment approach with a positive criterion).
+    point_estimate_bootstraps, point_estimate_se, point_estimate_ci
+        Bootstrap draws, standard error and ``nonparametric``/``normal``
+        intervals of the point estimate.
+    mtr_bootstraps, mtr_se, mtr_ci
+        The same for the MTR coefficients.
+    propensity_bootstraps, propensity_se, propensity_ci
+        The same for the propensity score coefficients.
+    j_test_bootstraps : numpy.ndarray or None
+        Bootstrap J statistics.
+    levels : tuple of float
+        Confidence levels.
+    ci_type : str
+        Region reported by :meth:`summary` for bounds.
     """
 
     target: str
@@ -96,6 +133,25 @@ class IVMTEResult:
     method: str
     messages: list[str] = field(default_factory=list)
     options: dict[str, Any] = field(default_factory=dict)
+    bootstraps: int = 0
+    bootstraps_failed: int = 0
+    bounds_bootstraps: np.ndarray | None = None
+    bounds_se: np.ndarray | None = None
+    bounds_ci: dict[str, pd.DataFrame] | None = None
+    p_value: dict[str, float] | None = None
+    specification_p_value: float | None = None
+    point_estimate_bootstraps: np.ndarray | None = None
+    point_estimate_se: float | None = None
+    point_estimate_ci: dict[str, pd.DataFrame] | None = None
+    mtr_bootstraps: np.ndarray | None = None
+    mtr_se: pd.Series | None = None
+    mtr_ci: dict[str, pd.DataFrame] | None = None
+    propensity_bootstraps: np.ndarray | None = None
+    propensity_se: pd.Series | None = None
+    propensity_ci: dict[str, pd.DataFrame] | None = None
+    j_test_bootstraps: np.ndarray | None = None
+    levels: tuple[float, ...] = (0.99, 0.95, 0.90)
+    ci_type: str = "backward"
 
     def summary(self) -> str:
         """Return a text summary in the style of R's ``summary.ivmte``."""
@@ -116,6 +172,27 @@ class IVMTEResult:
         if self.criterion is not None:
             lines.append(f"Minimum criterion: {_fmt(self.criterion)}")
         lines.append(f"Solver: {self.solver}")
+        if self.bootstraps:
+            if self.bounds_ci is not None:
+                lines.append(f"\nBootstrapped confidence intervals ({self.ci_type}):")
+                lines += _ci_lines(self.bounds_ci[self.ci_type])
+                if self.p_value is not None:
+                    lines.append(f"p-value: {_fmt(self.p_value[self.ci_type])}")
+                if self.specification_p_value is not None:
+                    lines.append(
+                        "Bootstrapped specification test p-value: "
+                        f"{_fmt(self.specification_p_value)}"
+                    )
+            elif self.point_estimate_ci is not None:
+                lines.append("\nBootstrapped confidence intervals (nonparametric):")
+                lines += _ci_lines(self.point_estimate_ci["nonparametric"])
+                if self.p_value is not None:
+                    lines.append(f"p-value: {_fmt(self.p_value['nonparametric'])}")
+                if self.j_test is not None and "bootstrap_p_value" in self.j_test:
+                    lines.append(
+                        f"Bootstrapped J-test p-value: {_fmt(self.j_test['bootstrap_p_value'])}"
+                    )
+            lines.append(f"Number of bootstraps: {self.bootstraps}")
         return "\n".join(lines)
 
     def __repr__(self) -> str:
@@ -141,5 +218,10 @@ class IVMTEResult:
                 else None
             ),
             "audit_count": self.audit.audit_count if self.audit else None,
+            "bootstraps": self.bootstraps,
+            "bounds_ci": _to_plain(self.bounds_ci),
+            "point_estimate_ci": _to_plain(self.point_estimate_ci),
+            "p_value": self.p_value,
+            "specification_p_value": self.specification_p_value,
             "options": _to_plain(self.options),
         }

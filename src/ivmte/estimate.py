@@ -4,17 +4,36 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
 import pandas as pd
 from formulaic import Formula
+from numpy.typing import NDArray
 
 from ivmte.audit import AuditError, AuditResult, run_audit
+from ivmte.bootstrap import (
+    BootstrapRetry,
+    Replicate,
+    bound_ci,
+    bound_pvalue,
+    coef_ci,
+    point_ci,
+    point_pvalues,
+    resample,
+)
 from ivmte.ivlike import MomentSet, build_moments
-from ivmte.lp import Criterion, L1Criterion, LSCriterion, equal_coef_matrix
+from ivmte.lp import (
+    Criterion,
+    L1Criterion,
+    LSCriterion,
+    equal_coef_matrix,
+    specification_statistic,
+)
 from ivmte.mtr import MTRSpec
-from ivmte.point import gmm, least_squares
+from ivmte.point import GMMResult, gmm, least_squares
 from ivmte.propensity import Propensity, fit_propensity, propensity_from_column
 from ivmte.results import IVMTEResult
 from ivmte.shape import Grids, build_grids
@@ -49,16 +68,92 @@ def _required_columns(
 
 def _regression_design(
     data: pd.DataFrame, spec0: MTRSpec, spec1: MTRSpec, prop: Propensity
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     """Design matrix of the regression approach (inverse propensity weighted integrals)."""
     d = np.asarray(data[prop.treat], dtype=float)
     p = prop.phat
     with np.errstate(divide="ignore", invalid="ignore"):
         w0 = np.where(d == 0, 1.0 / (1.0 - p), 0.0)
         w1 = np.where(d == 1, 1.0 / p, 0.0)
-    x0 = spec0.gamma(data, p, 1.0, w0)
-    x1 = spec1.gamma(data, 0.0, p, w1)
-    return np.hstack([x0, x1])
+    return np.hstack([spec0.gamma(data, p, 1.0, w0), spec1.gamma(data, 0.0, p, w1)])
+
+
+@dataclass
+class _Model:
+    """Everything computed from one sample before choosing an estimator."""
+
+    data: pd.DataFrame
+    prop: Propensity
+    spec0: MTRSpec
+    spec1: MTRSpec
+    target: TargetGammas
+    gstar: NDArray[np.float64]
+    names: tuple[str, ...]
+    equal: NDArray[np.float64] | None
+    y: NDArray[np.float64]
+    moments: MomentSet | None = None
+    x_reg: NDArray[np.float64] | None = None
+
+    @property
+    def n(self) -> int:
+        return len(self.data)
+
+    def restrictions(self, o: SimpleNamespace) -> dict[str, Any]:
+        """Shape restrictions with the R defaults (MTR bounds from the outcome range)."""
+        r = {k: getattr(o, k) for k in _SHAPE}
+        for key in ("m0_lb", "m1_lb"):
+            r[key] = float(np.min(self.y)) if r[key] is None else r[key]
+        for key in ("m0_ub", "m1_ub"):
+            r[key] = float(np.max(self.y)) if r[key] is None else r[key]
+        return r
+
+
+_SHAPE = (
+    "m0_lb", "m0_ub", "m1_lb", "m1_ub", "mte_lb", "mte_ub",
+    "m0_inc", "m0_dec", "m1_inc", "m1_dec", "mte_inc", "mte_dec",
+)  # fmt: skip
+
+
+def _prepare(data: pd.DataFrame, o: SimpleNamespace) -> _Model:
+    """Fit the propensity score, parse the MTRs and build the target and IV-like moments."""
+    if "~" in o.propensity:
+        prop = fit_propensity(data, o.propensity, o.link)
+    else:
+        prop = propensity_from_column(data, o.propensity, o.treat)
+    spec0 = MTRSpec.from_formula(o.m0, data, o.uname)
+    spec1 = MTRSpec.from_formula(o.m1, data, o.uname)
+    if o.target is None:
+        tg = custom_target_gammas(
+            spec0, spec1, data,
+            target_weight0=o.target_weight0, target_weight1=o.target_weight1,
+            target_knots0=o.target_knots0, target_knots1=o.target_knots1,
+        )  # fmt: skip
+    else:
+        tg = target_gammas_from_weights(
+            spec0, spec1, data,
+            conventional_weights(
+                o.target, data, prop, late_from=o.late_from, late_to=o.late_to,
+                late_x=o.late_x, genlate_lb=o.genlate_lb, genlate_ub=o.genlate_ub,
+            ),
+        )  # fmt: skip
+    equal = None
+    if o.equal_coef is not None:
+        eq_spec = MTRSpec.from_formula(o.equal_coef, data, o.uname)
+        equal = equal_coef_matrix(spec0, spec1, eq_spec.names)
+    names = tuple(f"[m0]{v}" for v in spec0.names) + tuple(f"[m1]{v}" for v in spec1.names)
+    outcome = o.outcome if o.outcome is not None else o.ivlike[0].split("~")[0].strip()
+    model = _Model(
+        data=data, prop=prop, spec0=spec0, spec1=spec1, target=tg,
+        gstar=np.concatenate([tg.gstar0, tg.gstar1]), names=names, equal=equal,
+        y=np.asarray(data[outcome], dtype=float),
+    )  # fmt: skip
+    if o.outcome is None:
+        model.moments = build_moments(
+            data, o.ivlike, spec0, spec1, prop, components=o.components, subsets=o.subset
+        )
+    else:
+        model.x_reg = _regression_design(data, spec0, spec1, prop)
+    return model
 
 
 def ivmte(
@@ -113,6 +208,12 @@ def ivmte(
     audit_tol: float = 1e-6,
     point: bool | None = None,
     point_eyeweight: bool = False,
+    bootstraps: int = 0,
+    bootstraps_m: int | None = None,
+    bootstraps_replace: bool = True,
+    levels: Sequence[float] = (0.99, 0.95, 0.90),
+    ci_type: str = "backward",
+    specification_test: bool = True,
     seed: int | np.random.Generator | None = None,
     noisy: bool = False,
 ) -> IVMTEResult:
@@ -191,8 +292,22 @@ def ivmte(
         automatically when omitted.
     point_eyeweight : bool, default False
         Use the identity weighting matrix in GMM.
+    bootstraps : int, default 0
+        Number of bootstrap replicates for inference (0 for none).
+    bootstraps_m : int, optional
+        Observations per bootstrap draw; defaults to the sample size.
+    bootstraps_replace : bool, default True
+        Draw with replacement. ``False`` gives subsampling.
+    levels : sequence of float
+        Confidence levels.
+    ci_type : {"backward", "forward"}
+        Confidence region reported in the summary for bounds; both are
+        computed.
+    specification_test : bool, default True
+        Run the bootstrap misspecification test in the partially identified
+        moment approach (when the sample criterion is positive).
     seed : int or numpy.random.Generator, optional
-        Randomness for sampling the covariate grids.
+        Randomness for sampling the covariate grids and the bootstrap.
     noisy : bool, default False
         Print progress messages.
 
@@ -210,8 +325,6 @@ def ivmte(
             "Specify exactly one of 'ivlike' (moment approach) or 'outcome' (regression approach)"
         )
     ivlike_list = [ivlike] if isinstance(ivlike, str) else list(ivlike or [])
-    if isinstance(subset, str):
-        subset = [subset]
     custom = target_weight0 is not None or target_weight1 is not None
     if custom and target is not None:
         raise ValueError("Specify either 'target' or custom target weights, not both")
@@ -221,23 +334,23 @@ def ivmte(
         raise ValueError("Custom targets need both 'target_weight0' and 'target_weight1'")
     if target is not None and target.lower() not in TARGETS:
         raise ValueError(f"target must be one of {TARGETS}, got {target!r}")
-    restrictions = {
-        "m0_lb": m0_lb, "m0_ub": m0_ub, "m1_lb": m1_lb, "m1_ub": m1_ub,
-        "mte_lb": mte_lb, "mte_ub": mte_ub, "m0_inc": m0_inc, "m0_dec": m0_dec,
-        "m1_inc": m1_inc, "m1_dec": m1_dec, "mte_inc": mte_inc, "mte_dec": mte_dec,
-    }  # fmt: skip
-    shape_given = any(v for v in restrictions.values())
-
-    # -- data ----------------------------------------------------------------
+    if ci_type not in ("backward", "forward"):
+        raise ValueError("ci_type must be 'backward' or 'forward'")
+    if bootstraps == 1:
+        raise ValueError("'bootstraps' must be 0 or at least 2")
     is_formula = "~" in propensity
     if not is_formula and treat is None:
         raise ValueError("'treat' is required when 'propensity' names a column of scores")
+    o = SimpleNamespace(**options)
+    o.ivlike = ivlike_list
+    o.subset = [subset] if isinstance(subset, str) else subset
+    o.target = target.lower() if target is not None else None
+    shape_given = any(getattr(o, k) for k in _SHAPE)
+
+    # -- data ----------------------------------------------------------------
     formulas = [m0, m1, *ivlike_list] + ([equal_coef] if equal_coef else [])
     extra = [c for c in (outcome, treat) if c]
-    if is_formula:
-        formulas.append(propensity)
-    else:
-        extra.append(propensity)
+    (formulas if is_formula else extra).append(propensity)
     cols = _required_columns(data, formulas, extra)
     complete = data[cols].notna().all(axis=1)
     if not complete.all():
@@ -249,72 +362,30 @@ def ivmte(
     for c in cols:
         if data[c].dtype == bool:
             data[c] = data[c].astype(int)
-    n = len(data)
 
-    # -- propensity, MTRs, target -------------------------------------------
-    if is_formula:
-        prop = fit_propensity(data, propensity, link)
-    else:
-        assert treat is not None
-        prop = propensity_from_column(data, propensity, treat)
-    spec0 = MTRSpec.from_formula(m0, data, uname)
-    spec1 = MTRSpec.from_formula(m1, data, uname)
-    if custom:
-        assert target_weight0 is not None and target_weight1 is not None
-        tg: TargetGammas = custom_target_gammas(
-            spec0, spec1, data,
-            target_weight0=target_weight0, target_weight1=target_weight1,
-            target_knots0=target_knots0, target_knots1=target_knots1,
-        )  # fmt: skip
-        target_name = "custom"
-    else:
-        assert target is not None
-        target_name = target.lower()
-        tg = target_gammas_from_weights(
-            spec0, spec1, data,
-            conventional_weights(
-                target_name, data, prop, late_from=late_from, late_to=late_to,
-                late_x=late_x, genlate_lb=genlate_lb, genlate_ub=genlate_ub,
-            ),
-        )  # fmt: skip
-    gstar = np.concatenate([tg.gstar0, tg.gstar1])
-    equal = None
-    if equal_coef is not None:
-        eq_spec = MTRSpec.from_formula(equal_coef, data, uname)
-        equal = equal_coef_matrix(spec0, spec1, eq_spec.names)
-    names = tuple(f"[m0]{v}" for v in spec0.names) + tuple(f"[m1]{v}" for v in spec1.names)
-    gstar_series = pd.Series(gstar, index=list(names))
-    outcome_var = outcome if outcome is not None else ivlike_list[0].split("~")[0].strip()
-    y_all = np.asarray(data[outcome_var], dtype=float)
-    for key, default in (
-        ("m0_lb", y_all.min()),
-        ("m1_lb", y_all.min()),
-        ("m0_ub", y_all.max()),
-        ("m1_ub", y_all.max()),
-    ):
-        if restrictions[key] is None:
-            restrictions[key] = float(default)
+    model = _prepare(data, o)
+    target_name = "custom" if custom else str(o.target)
+    gstar_series = pd.Series(model.gstar, index=list(model.names))
+    restrictions = model.restrictions(o)
 
     def result(**kw: Any) -> IVMTEResult:
         return IVMTEResult(
-            target=target_name, gstar=gstar_series, propensity=prop, specs=(spec0, spec1),
-            target_gammas=tg, messages=log, options=options, **kw,
+            target=target_name, gstar=gstar_series, propensity=model.prop,
+            specs=(model.spec0, model.spec1), target_gammas=model.target, messages=log,
+            options=options, levels=tuple(levels), ci_type=ci_type, **kw,
         )  # fmt: skip
 
-    # -- moment approach -------------------------------------------------------
-    moments: MomentSet | None = None
+    # -- point identification ---------------------------------------------------
     crit: Criterion
-    if outcome is None:
+    fit: GMMResult | None = None
+    if model.moments is not None:
         log.append("Generating IV-like moments...")
-        moments = build_moments(
-            data, ivlike_list, spec0, spec1, prop, components=components, subsets=subset
-        )
-        n_coef = spec0.n_coef + spec1.n_coef
+        n_coef = model.spec0.n_coef + model.spec1.n_coef
         if point is None:
-            point = moments.n_independent >= n_coef
+            point = model.moments.n_independent >= n_coef
             if point:
                 msg = "MTR is point identified via GMM."
-                if shape_given or equal is not None:
+                if shape_given or model.equal is not None:
                     msg += " Shape constraints are ignored."
                 warnings.warn(msg, stacklevel=2)
         elif point and shape_given:
@@ -324,74 +395,69 @@ def ivmte(
                 stacklevel=2,
             )
         if point:
-            log.append("Point estimate via GMM")
-            fit = gmm(moments, n, identity_weight=point_eyeweight)
-            est = float(gstar @ fit.theta)
-            log.append(f"Point estimate of the target parameter: {est:.7g}")
-            _emit(log, noisy)
-            j_test = (
-                {"stat": fit.j_stat, "df": fit.j_df, "p_value": fit.j_pvalue}
-                if fit.j_stat is not None
-                else None
+            fit = gmm(model.moments, model.n, identity_weight=point_eyeweight)
+            theta, method = fit.theta, "gmm"
+        else:
+            crit = L1Criterion(
+                np.hstack([model.moments.gamma0, model.moments.gamma1]), model.moments.beta
             )
-            return result(
-                bounds=None, point_estimate=est, mtr_coef=pd.Series(fit.theta, index=list(names)),
-                gstar_coef=None, moments=moments.n_independent, ivlike=moments, audit=None,
-                criterion=None, j_test=j_test, solver="none", method="gmm",
-            )  # fmt: skip
-        crit = L1Criterion(np.hstack([moments.gamma0, moments.gamma1]), moments.beta)
-        method = "lp"
-    # -- regression approach ---------------------------------------------------
+            method = "lp"
     else:
-        x_reg = _regression_design(data, spec0, spec1, prop)
-        full_rank = np.linalg.matrix_rank(x_reg) == x_reg.shape[1]
+        assert model.x_reg is not None
+        full_rank = np.linalg.matrix_rank(model.x_reg) == model.x_reg.shape[1]
         if point is None:
             point = full_rank
         if point and not full_rank:
             raise ValueError("The MTR coefficients are not point identified by the regression")
         if point:
+            msg = "MTR is point identified via linear regression."
             if shape_given:
-                warnings.warn(
-                    "MTR is point identified via linear regression. Shape constraints are ignored.",
-                    stacklevel=2,
-                )
-            else:
-                warnings.warn("MTR is point identified via linear regression.", stacklevel=2)
-            theta = least_squares(x_reg, y_all, equal)
-            est = float(gstar @ theta)
-            log.append(f"Point estimate of the target parameter: {est:.7g}")
-            _emit(log, noisy)
-            return result(
-                bounds=None, point_estimate=est, mtr_coef=pd.Series(theta, index=list(names)),
-                gstar_coef=None, moments=None, ivlike=None, audit=None, criterion=None,
-                j_test=None, solver="none", method="ols",
-            )  # fmt: skip
-        crit = LSCriterion.from_regression(x_reg, y_all)
-        method = "qcqp"
+                msg += " Shape constraints are ignored."
+            warnings.warn(msg, stacklevel=2)
+            theta, method = least_squares(model.x_reg, model.y, model.equal), "ols"
+        else:
+            crit = LSCriterion.from_regression(model.x_reg, model.y)
+            method = "qcqp"
+
+    if point:
+        est = float(model.gstar @ theta)
+        log.append(f"Point estimate of the target parameter: {est:.7g}")
+        j_test = None
+        if fit is not None and fit.j_stat is not None:
+            j_test = {"stat": fit.j_stat, "df": fit.j_df, "p_value": fit.j_pvalue}
+        res = result(
+            bounds=None, point_estimate=est, mtr_coef=pd.Series(theta, index=list(model.names)),
+            gstar_coef=None, moments=model.moments.n_independent if model.moments else None,
+            ivlike=model.moments, audit=None, criterion=None, j_test=j_test, solver="none",
+            method=method,
+        )  # fmt: skip
+        if bootstraps:
+            _bootstrap_point(res, model, o, fit, rng)
+        _emit(log, noisy)
+        return res
 
     # -- partial identification ------------------------------------------------
     solver_name = solver or default_solver(qcqp=method == "qcqp")
-    xvars = sorted(set(spec0.covariates) | set(spec1.covariates))
+    xvars = sorted(set(model.spec0.covariates) | set(model.spec1.covariates))
     log.append("Performing audit procedure...")
     log.append(f"    Solver: {solver_name}")
-    audit = _audit_with_expansion(
-        spec0, spec1, crit, gstar, data, xvars, restrictions, equal,
-        initgrid_nx=initgrid_nx, initgrid_nu=initgrid_nu, audit_nx=audit_nx, audit_nu=audit_nu,
-        initgrid_x=initgrid_x, initgrid_u=initgrid_u, audit_x=audit_x, audit_u=audit_u, rng=rng,
-        criterion_tol=criterion_tol, audit_tol=audit_tol, audit_add=audit_add,
-        audit_max=audit_max, solver=solver_name, solver_options=solver_options, log=log,
-    )  # fmt: skip
-    _emit(log, noisy)
+    audit, grids = _audit_with_expansion(
+        model, crit, xvars, restrictions, o, rng, solver_name, log
+    )
     gstar_coef = pd.DataFrame(
         {"min": audit.theta_min, "max": audit.theta_max, "criterion": audit.theta_crit},
-        index=list(names),
+        index=list(model.names),
     )
-    return result(
+    res = result(
         bounds=(audit.lower, audit.upper), point_estimate=None, mtr_coef=None,
-        gstar_coef=gstar_coef, moments=moments.n_independent if moments else None,
-        ivlike=moments, audit=audit, criterion=audit.criterion, j_test=None,
+        gstar_coef=gstar_coef, moments=model.moments.n_independent if model.moments else None,
+        ivlike=model.moments, audit=audit, criterion=audit.criterion, j_test=None,
         solver=solver_name, method=method,
     )  # fmt: skip
+    if bootstraps:
+        _bootstrap_bounds(res, model, o, grids, rng, solver_name)
+    _emit(log, noisy)
+    return res
 
 
 def _emit(log: list[str], noisy: bool) -> None:
@@ -399,57 +465,192 @@ def _emit(log: list[str], noisy: bool) -> None:
         print("\n".join(log))
 
 
+def _criterion(model: _Model) -> Criterion:
+    if model.moments is not None:
+        return L1Criterion(
+            np.hstack([model.moments.gamma0, model.moments.gamma1]), model.moments.beta
+        )
+    assert model.x_reg is not None
+    return LSCriterion.from_regression(model.x_reg, model.y)
+
+
 def _audit_with_expansion(
-    spec0: MTRSpec,
-    spec1: MTRSpec,
+    model: _Model,
     crit: Criterion,
-    gstar: np.ndarray,
-    data: pd.DataFrame,
     xvars: list[str],
     restrictions: dict[str, Any],
-    equal: np.ndarray | None,
-    *,
-    initgrid_nx: int,
-    initgrid_nu: int,
-    audit_nx: int,
-    audit_nu: int,
-    initgrid_x: pd.DataFrame | None,
-    initgrid_u: Sequence[float] | None,
-    audit_x: pd.DataFrame | None,
-    audit_u: Sequence[float] | None,
+    o: SimpleNamespace,
     rng: np.random.Generator,
-    criterion_tol: float,
-    audit_tol: float,
-    audit_add: int,
-    audit_max: int,
     solver: str,
-    solver_options: dict[str, Any] | None,
     log: list[str],
-) -> AuditResult:
+) -> tuple[AuditResult, Grids]:
     """Run the audit, enlarging the initial grid when a bound problem is unbounded.
 
     The R package retries up to three times with an initial grid 1.5 times
     larger when a bound problem reports an unbounded or suboptimal status.
     """
-    grids: Grids | None = None
+    nx, nu = o.initgrid_nx, o.initgrid_nu
     for attempt in range(4):
         grids = build_grids(
-            data, xvars,
-            initgrid_nx=initgrid_nx, initgrid_nu=initgrid_nu, audit_nx=audit_nx, audit_nu=audit_nu,
-            initgrid_x=initgrid_x, initgrid_u=initgrid_u, audit_x=audit_x, audit_u=audit_u, rng=rng,
+            model.data, xvars, initgrid_nx=nx, initgrid_nu=nu, audit_nx=o.audit_nx,
+            audit_nu=o.audit_nu, initgrid_x=o.initgrid_x, initgrid_u=o.initgrid_u,
+            audit_x=o.audit_x, audit_u=o.audit_u, rng=rng,
         )  # fmt: skip
         try:
-            return run_audit(
-                spec0, spec1, crit, gstar, grids, restrictions, equal=equal,
-                criterion_tol=criterion_tol, audit_tol=audit_tol, audit_add=audit_add,
-                audit_max=audit_max, solver=solver, solver_options=solver_options, log=log,
-            )  # fmt: skip
+            return _run_audit(model, crit, grids, restrictions, o, solver, log), grids
         except AuditError as err:
             if err.status not in (3, 4, 6) or attempt == 3:
                 raise
-            initgrid_nx = min(int(np.ceil(initgrid_nx * 1.5)), audit_nx)
-            initgrid_nu = min(int(np.ceil(initgrid_nu * 1.5)), audit_nu)
+            nx = min(int(np.ceil(nx * 1.5)), o.audit_nx)
+            nu = min(int(np.ceil(nu * 1.5)), o.audit_nu)
             log.append("    Restarting audit with new settings:")
-            log.append(f"    initgrid_nx = {initgrid_nx}")
-            log.append(f"    initgrid_nu = {initgrid_nu}")
+            log.append(f"    initgrid_nx = {nx}")
+            log.append(f"    initgrid_nu = {nu}")
     raise AssertionError("unreachable")
+
+
+def _run_audit(
+    model: _Model,
+    crit: Criterion,
+    grids: Grids,
+    restrictions: dict[str, Any],
+    o: SimpleNamespace,
+    solver: str,
+    log: list[str],
+) -> AuditResult:
+    return run_audit(
+        model.spec0, model.spec1, crit, model.gstar, grids, restrictions, equal=model.equal,
+        criterion_tol=o.criterion_tol, audit_tol=o.audit_tol, audit_add=o.audit_add,
+        audit_max=o.audit_max, solver=solver, solver_options=o.solver_options, log=log,
+    )  # fmt: skip
+
+
+def _bootstrap_bounds(
+    res: IVMTEResult,
+    model: _Model,
+    o: SimpleNamespace,
+    grids: Grids,
+    rng: np.random.Generator,
+    solver: str,
+) -> None:
+    """Bootstrap the bounds with the audit grid held fixed, as the R package does."""
+    assert res.bounds is not None and res.audit is not None
+    n = model.n
+    m = o.bootstraps_m or n
+    spec_test = o.specification_test and model.moments is not None and res.audit.criterion > 0
+    orig = _criterion(model)
+    orig_crit = res.audit.criterion
+
+    def replicate(idx: NDArray[np.intp]) -> Replicate:
+        bm = _prepare(model.data.iloc[idx].reset_index(drop=True), o)
+        if bm.names != model.names or (
+            bm.prop.params is not None
+            and model.prop.params is not None
+            and len(bm.prop.params) != len(model.prop.params)
+        ):
+            raise BootstrapRetry("a factor level is missing from the resample")
+        crit = _criterion(bm)
+        audit = _run_audit(bm, crit, grids, bm.restrictions(o), o, solver, [])
+        stat = None
+        if spec_test:
+            assert isinstance(crit, L1Criterion) and isinstance(orig, L1Criterion)
+            stat = specification_statistic(
+                crit,
+                orig,
+                orig_crit,
+                o.criterion_tol,
+                audit.constraints,
+                bm.equal,
+                solver,
+                o.solver_options,
+            )
+        return Replicate(
+            bounds=(audit.lower, audit.upper), propensity=bm.prop.params, spec_stat=stat
+        )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        boot = resample(n, m, o.bootstraps_replace, replicate, o.bootstraps, rng)
+    assert boot.bounds is not None
+    levels = list(res.levels)
+    res.bootstraps, res.bootstraps_failed = boot.n_draws, boot.n_failed
+    res.bounds_bootstraps = boot.bounds
+    res.bounds_se = np.std(boot.bounds, axis=0, ddof=1)
+    res.bounds_ci = {
+        k: bound_ci(res.bounds, boot.bounds, n, m, levels, k) for k in ("backward", "forward")
+    }
+    res.p_value = {
+        k: bound_pvalue(res.bounds, boot.bounds, n, m, k) for k in ("backward", "forward")
+    }
+    if boot.spec_stats is not None:
+        res.specification_p_value = float(np.mean(orig_crit <= boot.spec_stats))
+    _propensity_inference(res, boot.propensity, levels)
+    res.messages.append(f"Bootstraps: {boot.n_draws} ({boot.n_failed} failed draws)")
+
+
+def _bootstrap_point(
+    res: IVMTEResult,
+    model: _Model,
+    o: SimpleNamespace,
+    fit: GMMResult | None,
+    rng: np.random.Generator,
+) -> None:
+    """Bootstrap a point estimate; GMM replicates are recentred at the sample moments."""
+    assert res.point_estimate is not None and res.mtr_coef is not None
+    n = model.n
+    m = o.bootstraps_m or n
+
+    def replicate(idx: NDArray[np.intp]) -> Replicate:
+        bm = _prepare(model.data.iloc[idx].reset_index(drop=True), o)
+        if bm.names != model.names:
+            raise BootstrapRetry("a factor level is missing from the resample")
+        j_stat = None
+        if fit is not None:
+            assert bm.moments is not None
+            if bm.moments.n_moments != len(fit.moments) + len(fit.redundant):
+                raise BootstrapRetry("the number of moments changed in the resample")
+            bfit = gmm(
+                bm.moments,
+                bm.n,
+                identity_weight=o.point_eyeweight,
+                center=fit.moments,
+                redundant=fit.redundant,
+            )
+            theta, j_stat = bfit.theta, bfit.j_stat
+        else:
+            assert bm.x_reg is not None
+            theta = least_squares(bm.x_reg, bm.y, bm.equal)
+        return Replicate(
+            point=float(bm.gstar @ theta), mtr=theta, propensity=bm.prop.params, j_stat=j_stat
+        )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        boot = resample(n, m, o.bootstraps_replace, replicate, o.bootstraps, rng)
+    assert boot.points is not None and boot.mtr is not None
+    levels = list(res.levels)
+    res.bootstraps, res.bootstraps_failed = boot.n_draws, boot.n_failed
+    res.point_estimate_bootstraps = boot.points
+    res.point_estimate_se = float(np.std(boot.points, ddof=1))
+    res.point_estimate_ci = point_ci(res.point_estimate, boot.points, levels)
+    res.p_value = point_pvalues(res.point_estimate, boot.points)
+    res.mtr_bootstraps = boot.mtr
+    res.mtr_se = pd.Series(np.std(boot.mtr, axis=0, ddof=1), index=res.mtr_coef.index)
+    res.mtr_ci = coef_ci(res.mtr_coef.to_numpy(), boot.mtr, list(res.mtr_coef.index), levels)
+    if boot.j_stats is not None and res.j_test is not None:
+        res.j_test_bootstraps = boot.j_stats
+        res.j_test["bootstrap_p_value"] = float(np.mean(boot.j_stats >= res.j_test["stat"]))
+    _propensity_inference(res, boot.propensity, levels)
+    res.messages.append(f"Bootstraps: {boot.n_draws} ({boot.n_failed} failed draws)")
+
+
+def _propensity_inference(
+    res: IVMTEResult, draws: NDArray[np.float64] | None, levels: list[float]
+) -> None:
+    params = res.propensity.params
+    if draws is None or params is None:
+        return
+    names = list(res.propensity.names)
+    res.propensity_bootstraps = draws
+    res.propensity_se = pd.Series(np.std(draws, axis=0, ddof=1), index=names)
+    res.propensity_ci = coef_ci(params, draws, names, levels)
