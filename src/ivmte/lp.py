@@ -242,3 +242,79 @@ def solve_bound(
     if res.x is None:
         return res, None
     return res, _theta(crit, res.x)
+
+
+def specification_statistic(
+    crit: L1Criterion,
+    orig: L1Criterion,
+    orig_min: float,
+    criterion_tol: float,
+    shape: ShapeConstraints,
+    equal: NDArray[np.float64] | None,
+    solver: str | None,
+    options: dict[str, Any] | None,
+) -> float:
+    """Bootstrap criterion restricted to near-minimisers of the original sample's criterion.
+
+    This is the statistic of the misspecification test of the R package:
+    the absolute-deviation criterion of the resample is minimised over the
+    coefficients whose original-sample criterion is at most
+    ``(1 + criterion_tol) * orig_min``, under the shape restrictions.
+
+    Parameters
+    ----------
+    crit : L1Criterion
+        Moments of the resample.
+    orig : L1Criterion
+        Moments of the original sample.
+    orig_min : float
+        Minimum criterion in the original sample.
+    criterion_tol : float
+        Relative slack on the original criterion.
+    shape : ShapeConstraints
+        Shape restrictions in force (on the coefficients only).
+    equal : numpy.ndarray, optional
+        Equality rows on the coefficients.
+    solver, options
+        Passed to the solver.
+
+    Returns
+    -------
+    float
+        Value of the statistic.
+    """
+    s, j = len(crit.beta), crit.n_coef
+    n_slack = 4 * s
+    eye = sp.identity(s)
+    zero = sp.csr_matrix((s, 2 * s))
+    a_eq = sp.vstack(
+        [
+            sp.hstack([-eye, eye, zero, sp.csr_matrix(crit.gamma)]),
+            sp.hstack([zero, -eye, eye, sp.csr_matrix(orig.gamma)]),
+        ]
+    )
+    b_eq = np.concatenate([crit.beta, orig.beta])
+    if equal is not None and len(equal):
+        a_eq = sp.vstack([a_eq, _pad(equal, n_slack)])
+        b_eq = np.concatenate([b_eq, np.zeros(len(equal))])
+    row = sp.csr_matrix(np.concatenate([np.zeros(2 * s), np.ones(2 * s), np.zeros(j)]))
+    a_ub = sp.vstack([row, _pad(shape.A, n_slack)]) if shape.n else row
+    b_ub = (
+        np.concatenate([[orig_min * (1.0 + criterion_tol)], shape.b])
+        if shape.n
+        else np.array([orig_min * (1.0 + criterion_tol)])
+    )
+    cons = LinearConstraints(
+        n_slack + j,
+        sp.csr_matrix(a_ub),
+        b_ub,
+        sp.csr_matrix(a_eq),
+        b_eq,
+        np.concatenate([np.zeros(n_slack), np.full(j, -np.inf)]),
+        None,
+    )
+    c = np.concatenate([np.ones(2 * s), np.zeros(2 * s + j)])
+    res = solve_lp(c, cons, "min", solver, options)
+    if res.obj is None:
+        raise RuntimeError(f"The specification test LP returned no solution ({res.status_str})")
+    return float(res.obj)
