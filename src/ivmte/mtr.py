@@ -12,7 +12,7 @@ the u-part is known analytically, integrals of the MTR against weights in
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -94,11 +94,12 @@ class MTRSpec:
 
     formula: str
     uname: str
-    _spec: ModelSpec
+    _spec: ModelSpec | None
     poly_columns: tuple[int, ...]
     exponents: tuple[int, ...]
     poly_names: tuple[str, ...]
     splines: tuple[SplineBlock, ...]
+    _columns: tuple[str | None, ...] = ()
 
     @classmethod
     def from_formula(cls, formula: str, data: pd.DataFrame, uname: str = "u") -> MTRSpec:
@@ -186,6 +187,75 @@ class MTRSpec:
             splines=blocks,
         )
 
+    @classmethod
+    def from_columns(
+        cls,
+        terms: Sequence[tuple[int | USpline, str | None]],
+        data: pd.DataFrame,
+        uname: str = "u",
+    ) -> MTRSpec:
+        """Build a specification from explicit terms instead of a formula.
+
+        Parameters
+        ----------
+        terms : sequence of (u_part, column)
+            Each term is the product of a u-part and a data column. The
+            u-part is an integer exponent (``0`` for no dependence on ``u``)
+            or a :class:`~ivmte.USpline`; the column is a name in ``data`` or
+            ``None`` for a constant.
+        data : pandas.DataFrame
+            Data the columns refer to.
+        uname : str, default "u"
+            Name used for the unobservable in coefficient names.
+
+        Returns
+        -------
+        MTRSpec
+
+        Examples
+        --------
+        ``[(0, None), (1, None), (0, "x"), (1, "x")]`` is ``"~ u + x + u:x"``.
+        """
+        columns: list[str | None] = []
+        poly_columns: list[int] = []
+        exponents: list[int] = []
+        poly_names: list[str] = []
+        spline_specs: list[USpline] = []
+        spline_inter: list[list[tuple[int, str]]] = []
+        for u_part, col in terms:
+            if col is not None and col not in data.columns:
+                raise ValueError(f"Column {col!r} not found in the data")
+            columns.append(col)
+            idx = len(columns) - 1
+            if isinstance(u_part, USpline):
+                inter = col or "1"
+                if u_part in spline_specs:
+                    spline_inter[spline_specs.index(u_part)].append((idx, inter))
+                else:
+                    spline_specs.append(u_part)
+                    spline_inter.append([(idx, inter)])
+                continue
+            e = int(u_part)
+            upart = "" if e == 0 else (uname if e == 1 else f"I({uname} ** {e})")
+            name = ":".join(part for part in (upart, col) if part) or "Intercept"
+            poly_columns.append(idx)
+            exponents.append(e)
+            poly_names.append(name)
+        blocks = tuple(
+            SplineBlock(sp, tuple(c for c, _ in inter), tuple(n for _, n in inter))
+            for sp, inter in zip(spline_specs, spline_inter, strict=True)
+        )
+        return cls(
+            formula="",
+            uname=uname,
+            _spec=None,
+            poly_columns=tuple(poly_columns),
+            exponents=tuple(exponents),
+            poly_names=tuple(poly_names),
+            splines=blocks,
+            _columns=tuple(columns),
+        )
+
     # -- structure ---------------------------------------------------------
 
     @property
@@ -205,10 +275,18 @@ class MTRSpec:
     @property
     def covariates(self) -> tuple[str, ...]:
         """Names of the data columns the specification depends on."""
+        if self._spec is None:
+            return tuple(sorted({c for c in self._columns if c is not None}))
         return tuple(v for v in sorted(self._spec.required_variables) if v != self.uname)
 
     def covariate_matrix(self, data: pd.DataFrame) -> NDArray[np.float64]:
         """Evaluate every term's covariate part on ``data`` (u set to one)."""
+        if self._spec is None:
+            cols = [
+                np.ones(len(data)) if c is None else np.asarray(data[c], dtype=float)
+                for c in self._columns
+            ]
+            return np.column_stack(cols) if cols else np.empty((len(data), 0))
         frame = data.assign(**{self.uname: 1.0})
         context = {"uSplines": _one, "c": _c}
         return np.asarray(self._spec.get_model_matrix(frame, context=context), dtype=float)

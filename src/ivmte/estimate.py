@@ -38,6 +38,7 @@ from ivmte.propensity import Propensity, fit_propensity, propensity_from_column
 from ivmte.results import IVMTEResult
 from ivmte.shape import Grids, build_grids
 from ivmte.solvers import default_solver
+from ivmte.splines import USpline
 from ivmte.weights import (
     TARGETS,
     TargetGammas,
@@ -114,14 +115,22 @@ _SHAPE = (
 )  # fmt: skip
 
 
+def _spec(
+    m: str | Sequence[tuple[int | USpline, str | None]], data: pd.DataFrame, uname: str
+) -> MTRSpec:
+    if isinstance(m, str):
+        return MTRSpec.from_formula(m, data, uname)
+    return MTRSpec.from_columns(m, data, uname)
+
+
 def _prepare(data: pd.DataFrame, o: SimpleNamespace) -> _Model:
     """Fit the propensity score, parse the MTRs and build the target and IV-like moments."""
     if "~" in o.propensity:
         prop = fit_propensity(data, o.propensity, o.link)
     else:
         prop = propensity_from_column(data, o.propensity, o.treat)
-    spec0 = MTRSpec.from_formula(o.m0, data, o.uname)
-    spec1 = MTRSpec.from_formula(o.m1, data, o.uname)
+    spec0 = _spec(o.m0, data, o.uname)
+    spec1 = _spec(o.m1, data, o.uname)
     if o.target is None:
         tg = custom_target_gammas(
             spec0, spec1, data,
@@ -159,8 +168,8 @@ def _prepare(data: pd.DataFrame, o: SimpleNamespace) -> _Model:
 def ivmte(
     data: pd.DataFrame,
     *,
-    m0: str,
-    m1: str,
+    m0: str | Sequence[tuple[int | USpline, str | None]],
+    m1: str | Sequence[tuple[int | USpline, str | None]],
     target: str | None = None,
     late_from: dict[str, Any] | None = None,
     late_to: dict[str, Any] | None = None,
@@ -224,10 +233,10 @@ def ivmte(
     data : pandas.DataFrame
         Estimation sample. Rows with missing values in any variable used are
         dropped with a warning.
-    m0, m1 : str
-        One-sided formulas for the MTR functions of the untreated and treated
-        arms, in the unobservable ``uname`` and covariates; see
-        :class:`ivmte.MTRSpec`.
+    m0, m1 : str or sequence of (u_part, column)
+        MTR functions of the untreated and treated arms: one-sided formulas
+        in the unobservable ``uname`` and covariates, or explicit term lists
+        for :meth:`ivmte.MTRSpec.from_columns`.
     target : {"ate", "att", "atu", "late", "avglate", "genlate"}, optional
         Target parameter. Omit when defining a custom target through
         ``target_weight0``/``target_weight1``.
@@ -348,8 +357,11 @@ def ivmte(
     shape_given = any(getattr(o, k) for k in _SHAPE)
 
     # -- data ----------------------------------------------------------------
-    formulas = [m0, m1, *ivlike_list] + ([equal_coef] if equal_coef else [])
-    extra = [c for c in (outcome, treat) if c]
+    formulas = [f for f in (m0, m1) if isinstance(f, str)] + ivlike_list
+    if equal_coef:
+        formulas.append(equal_coef)
+    extra_cols = [c for f in (m0, m1) if not isinstance(f, str) for _, c in f if c]
+    extra = [c for c in (outcome, treat) if c] + extra_cols
     (formulas if is_formula else extra).append(propensity)
     cols = _required_columns(data, formulas, extra)
     complete = data[cols].notna().all(axis=1)
