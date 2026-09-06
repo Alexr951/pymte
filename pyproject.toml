@@ -3,7 +3,7 @@ requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ivmte"
+name = "pymte"
 version = "0.1.0.dev0"
 description = "Instrumental variables: extrapolation by marginal treatment effects"
 readme = "README.md"
@@ -59,11 +59,11 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/alexronczewski/pymte"
-Documentation = "https://ivmte.readthedocs.io"
+Documentation = "https://pymte.readthedocs.io"
 "R package" = "https://github.com/jkcshea/ivmte"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ivmte"]
+packages = ["src/pymte"]
 
 [tool.ruff]
 line-length = 99
@@ -84,7 +84,7 @@ convention = "numpy"
 quote-style = "double"
 
 [tool.mypy]
-files = ["src/ivmte"]
+files = ["src/pymte"]
 strict = true
 warn_unreachable = true
 

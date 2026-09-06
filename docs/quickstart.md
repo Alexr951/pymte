@@ -11,9 +11,9 @@ data: the effect of having a third child on whether the mother worked,
 instrumented by whether the first two children have the same sex.
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-ae = ivmte.load_ae()
+ae = pymte.load_ae()
 ae.head()
 ```
 
@@ -26,7 +26,7 @@ logit propensity score, and ask for the average treatment effect on the
 treated.
 
 ```{code-cell} python
-r = ivmte.ivmte(
+r = pymte.ivmte(
     ae,
     target="att",
     m0="~ u + yob",
@@ -61,7 +61,7 @@ With `m0 = m1 = "~ u"` the four moments identify the four coefficients, and
 the estimator switches to GMM:
 
 ```{code-cell} python
-p = ivmte.ivmte(
+p = pymte.ivmte(
     ae,
     target="att",
     m0="~ u",
@@ -82,7 +82,7 @@ Naming the outcome fits the MTRs to its conditional means directly, with no
 IV-like estimands:
 
 ```{code-cell} python
-q = ivmte.ivmte(
+q = pymte.ivmte(
     ae,
     target="att",
     m0="~ u + yob",

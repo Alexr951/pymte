@@ -6,13 +6,13 @@ effect framework of Mogstad, Santos and Torgovitsky (2018) for point and
 partial identification of treatment parameters.
 """
 
-from ivmte.datasets import load_ae, load_sim_data
-from ivmte.estimate import ivmte
-from ivmte.mtr import MTRSpec
-from ivmte.plots import plot_mte, plot_mtr, plot_weights
-from ivmte.propensity import Propensity, fit_propensity
-from ivmte.results import IVMTEResult
-from ivmte.splines import USpline
+from pymte.datasets import load_ae, load_sim_data
+from pymte.estimate import ivmte
+from pymte.mtr import MTRSpec
+from pymte.plots import plot_mte, plot_mtr, plot_weights
+from pymte.propensity import Propensity, fit_propensity
+from pymte.results import IVMTEResult
+from pymte.splines import USpline
 
 __all__ = [
     "IVMTEResult",

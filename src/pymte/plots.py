@@ -9,14 +9,14 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from ivmte.results import IVMTEResult
+from pymte.results import IVMTEResult
 
 
 def _plt() -> Any:
     try:
         import matplotlib.pyplot as plt
     except ImportError as err:  # pragma: no cover - depends on the environment
-        raise ImportError("Plotting requires matplotlib: pip install 'ivmte[plots]'") from err
+        raise ImportError("Plotting requires matplotlib: pip install 'pymte[plots]'") from err
     return plt
 
 
@@ -64,7 +64,7 @@ def plot_mtr(
     Parameters
     ----------
     result : IVMTEResult
-        Output of :func:`ivmte.ivmte`.
+        Output of :func:`pymte.ivmte`.
     at : mapping, optional
         Covariate values at which to evaluate the MTRs; required when the
         specification includes covariates.
@@ -122,7 +122,7 @@ def plot_weights(result: IVMTEResult, n_points: int = 401, ax: Any = None) -> An
     Parameters
     ----------
     result : IVMTEResult
-        Output of :func:`ivmte.ivmte`; the target weights must be of a
+        Output of :func:`pymte.ivmte`; the target weights must be of a
         conventional target (not custom weights).
     n_points : int, default 401
         Number of grid points in ``u``.

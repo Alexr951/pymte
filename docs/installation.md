@@ -1,7 +1,7 @@
 # Installation
 
 ```bash
-pip install ivmte
+pip install pymte
 ```
 
 Python 3.10 or later is required. The package depends on NumPy, SciPy,
@@ -23,14 +23,14 @@ the R package (Gurobi, then MOSEK), or explicitly with `solver="gurobi"` or
 `solver="mosek"`:
 
 ```bash
-pip install "ivmte[gurobi]"
-pip install "ivmte[mosek]"
+pip install "pymte[gurobi]"
+pip install "pymte[mosek]"
 ```
 
 ## Optional extras
 
 ```bash
-pip install "ivmte[plots]"   # matplotlib, for plot_mtr, plot_mte, plot_weights
-pip install "ivmte[docs]"    # build the documentation locally
-pip install "ivmte[dev]"     # pytest, ruff, mypy
+pip install "pymte[plots]"   # matplotlib, for plot_mtr, plot_mte, plot_weights
+pip install "pymte[docs]"    # build the documentation locally
+pip install "pymte[dev]"     # pytest, ruff, mypy
 ```

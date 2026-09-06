@@ -21,10 +21,10 @@ import pandas as pd
 import scipy.sparse as sp
 from numpy.typing import NDArray
 
-from ivmte.lp import Criterion, build_constraints, solve_bound, solve_criterion
-from ivmte.mtr import MTRSpec
-from ivmte.shape import Grids, ShapeConstraints, select_violations, shape_constraints, violations
-from ivmte.solvers import SolveResult
+from pymte.lp import Criterion, build_constraints, solve_bound, solve_criterion
+from pymte.mtr import MTRSpec
+from pymte.shape import Grids, ShapeConstraints, select_violations, shape_constraints, violations
+from pymte.solvers import SolveResult
 
 
 class AuditError(RuntimeError):
@@ -161,7 +161,7 @@ def run_audit(
     grids : Grids
         Initial and audit grids.
     restrictions : dict
-        Shape restrictions, see :func:`ivmte.shape.shape_constraints`.
+        Shape restrictions, see :func:`pymte.shape.shape_constraints`.
     equal : numpy.ndarray, optional
         Equality rows on the coefficients.
     criterion_tol : float
@@ -170,7 +170,7 @@ def run_audit(
         Violations below this size are ignored.
     audit_add : int
         Maximum number of violated points added per round (see
-        :func:`ivmte.shape.select_violations`).
+        :func:`pymte.shape.select_violations`).
     audit_max : int
         Maximum number of rounds.
     solver, solver_options

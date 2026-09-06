@@ -1,11 +1,11 @@
 """Sphinx configuration."""
 
-import ivmte
+import pymte
 
-project = "ivmte"
+project = "pymte"
 author = "Alex Ronczewski"
 copyright = "2026, Alex Ronczewski"  # noqa: A001
-release = ivmte.__version__
+release = pymte.__version__
 
 extensions = [
     "myst_nb",

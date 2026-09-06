@@ -75,7 +75,7 @@ a constant). This is convenient when the specification is generated
 programmatically:
 
 ```{code-cell} python
-from ivmte import USpline
+from pymte import USpline
 
 terms = [(0, None), (1, None), (0, "yob"), (USpline(degree=1, knots=[.2, .4, .6, .8]), None)]
 # equivalent to "~ u + yob + uSplines(degree=1, knots=[.2, .4, .6, .8])"
@@ -91,10 +91,10 @@ the estimator uses: coefficient names, the exponent of $u$ in each
 polynomial term, and the spline blocks.
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-ae = ivmte.load_ae()
-spec = ivmte.MTRSpec.from_formula("~ u + I(u**2) + yob + u:yob", ae)
+ae = pymte.load_ae()
+spec = pymte.MTRSpec.from_formula("~ u + I(u**2) + yob + u:yob", ae)
 spec.names, spec.exponents
 ```
 

@@ -8,7 +8,7 @@ import pandas as pd
 
 
 def _read(name: str) -> pd.DataFrame:
-    with files("ivmte").joinpath("data").joinpath(name).open("rb") as fh:
+    with files("pymte").joinpath("data").joinpath(name).open("rb") as fh:
         return pd.read_csv(fh, compression="gzip")
 
 
@@ -26,7 +26,7 @@ def load_ae() -> pd.DataFrame:
     The data are women aged at least 20 at first birth from the 1980 Census
     extract of Angrist and Evans (1998), restricted to the columns needed for
     the examples. They are exported unchanged from the R package ``ivmte``;
-    see ``ivmte/data/PROVENANCE.md`` for details.
+    see ``pymte/data/PROVENANCE.md`` for details.
 
     References
     ----------
@@ -49,7 +49,7 @@ def load_sim_data() -> pd.DataFrame:
     Notes
     -----
     The data were generated in R with ``set.seed(1)``; the generating code is
-    reproduced in ``ivmte/data/PROVENANCE.md``. We ship the R draw itself, so
+    reproduced in ``pymte/data/PROVENANCE.md``. We ship the R draw itself, so
     results match the R package exactly; NumPy and R random streams differ.
     """
     return _read("ivmte_sim_data.csv.gz")

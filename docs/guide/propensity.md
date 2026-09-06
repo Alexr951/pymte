@@ -26,10 +26,10 @@ The formula uses the same syntax as the MTR specifications, so instruments
 with several values can be entered as factors, `"d ~ C(z) + x"`.
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-ae = ivmte.load_ae()
-prop = ivmte.fit_propensity(ae, "morekids ~ samesex + yob")
+ae = pymte.load_ae()
+prop = pymte.fit_propensity(ae, "morekids ~ samesex + yob")
 dict(zip(prop.names, prop.params.round(5)))
 ```
 

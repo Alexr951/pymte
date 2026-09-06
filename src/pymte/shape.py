@@ -19,7 +19,7 @@ import pandas as pd
 import scipy.sparse as sp
 from numpy.typing import ArrayLike, NDArray
 
-from ivmte.mtr import MTRSpec
+from pymte.mtr import MTRSpec
 
 KINDS = (
     "m0.lb",

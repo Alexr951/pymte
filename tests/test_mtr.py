@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 from scipy.integrate import quad
 
-from ivmte import load_ae
-from ivmte.mtr import MTRSpec
+from pymte import load_ae
+from pymte.mtr import MTRSpec
 
 
 @pytest.fixture(scope="module")
@@ -108,7 +108,7 @@ def test_gamma_rows_restricts_and_design_evaluates(ae):
 
 
 def test_from_columns_matches_formula(ae):
-    from ivmte.splines import USpline
+    from pymte.splines import USpline
 
     data = ae.head(50)
     by_formula = MTRSpec.from_formula(

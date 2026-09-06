@@ -1,4 +1,4 @@
-"""The :func:`ivmte` estimator."""
+"""The :func:`pymte.ivmte` estimator."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ import pandas as pd
 from formulaic import Formula
 from numpy.typing import NDArray
 
-from ivmte.audit import AuditError, AuditResult, run_audit
-from ivmte.bootstrap import (
+from pymte.audit import AuditError, AuditResult, run_audit
+from pymte.bootstrap import (
     BootstrapRetry,
     Replicate,
     bound_ci,
@@ -24,22 +24,22 @@ from ivmte.bootstrap import (
     point_pvalues,
     resample,
 )
-from ivmte.ivlike import MomentSet, build_moments
-from ivmte.lp import (
+from pymte.ivlike import MomentSet, build_moments
+from pymte.lp import (
     Criterion,
     L1Criterion,
     LSCriterion,
     equal_coef_matrix,
     specification_statistic,
 )
-from ivmte.mtr import MTRSpec
-from ivmte.point import GMMResult, gmm, least_squares
-from ivmte.propensity import Propensity, fit_propensity, propensity_from_column
-from ivmte.results import IVMTEResult
-from ivmte.shape import Grids, build_grids
-from ivmte.solvers import default_solver
-from ivmte.splines import USpline
-from ivmte.weights import (
+from pymte.mtr import MTRSpec
+from pymte.point import GMMResult, gmm, least_squares
+from pymte.propensity import Propensity, fit_propensity, propensity_from_column
+from pymte.results import IVMTEResult
+from pymte.shape import Grids, build_grids
+from pymte.solvers import default_solver
+from pymte.splines import USpline
+from pymte.weights import (
     TARGETS,
     TargetGammas,
     conventional_weights,
@@ -236,7 +236,7 @@ def ivmte(
     m0, m1 : str or sequence of (u_part, column)
         MTR functions of the untreated and treated arms: one-sided formulas
         in the unobservable ``uname`` and covariates, or explicit term lists
-        for :meth:`ivmte.MTRSpec.from_columns`.
+        for :meth:`pymte.MTRSpec.from_columns`.
     target : {"ate", "att", "atu", "late", "avglate", "genlate"}, optional
         Target parameter. Omit when defining a custom target through
         ``target_weight0``/``target_weight1``.

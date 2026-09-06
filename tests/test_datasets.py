@@ -1,4 +1,4 @@
-from ivmte import load_ae, load_sim_data
+from pymte import load_ae, load_sim_data
 
 
 def test_ae_shape_and_columns():

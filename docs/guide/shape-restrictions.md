@@ -26,9 +26,9 @@ increasing or decreasing in $u$; `mte_inc`, `mte_dec` do the same for the
 MTE. Setting both `inc` and `dec` forces constancy in $u$.
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-ae = ivmte.load_ae()
+ae = pymte.load_ae()
 common = dict(
     ivlike="worked ~ morekids + samesex + morekids*samesex",
     target="att",
@@ -36,11 +36,11 @@ common = dict(
     m1="~ uSplines(degree=2, knots=[.1, .3, .5, .7]) * yob",
     propensity="morekids ~ samesex + yob",
 )
-ivmte.ivmte(ae, **common).bounds
+pymte.ivmte(ae, **common).bounds
 ```
 
 ```{code-cell} python
-ivmte.ivmte(ae, m0_inc=True, m1_inc=True, mte_dec=True, **common).bounds
+pymte.ivmte(ae, m0_inc=True, m1_inc=True, mte_dec=True, **common).bounds
 ```
 
 ## Equality of coefficients across arms
@@ -49,8 +49,8 @@ ivmte.ivmte(ae, m0_inc=True, m1_inc=True, mte_dec=True, **common).bounds
 $m_1$, for instance a covariate effect that does not vary with treatment:
 
 ```{code-cell} python
-sim = ivmte.load_sim_data()
-r = ivmte.ivmte(
+sim = pymte.load_sim_data()
+r = pymte.ivmte(
     sim,
     outcome="y",
     target="ate",

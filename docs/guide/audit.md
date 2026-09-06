@@ -31,7 +31,7 @@ deterministic. Otherwise pass `seed` for reproducibility, or pass the grids
 explicitly with `initgrid_x`, `initgrid_u`, `audit_x`, `audit_u`.
 
 ```{code-cell} python
-from ivmte.shape import u_grid
+from pymte.shape import u_grid
 
 u_grid(5)
 ```
@@ -54,10 +54,10 @@ worst in every group, and so on.
 ## Diagnostics
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-ae = ivmte.load_ae()
-r = ivmte.ivmte(
+ae = pymte.load_ae()
+r = pymte.ivmte(
     ae,
     ivlike="worked ~ morekids + samesex + morekids*samesex",
     target="att",

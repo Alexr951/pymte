@@ -19,7 +19,7 @@ boundaries are ignored.
 ```{code-cell} python
 import numpy as np
 import matplotlib.pyplot as plt
-from ivmte import USpline
+from pymte import USpline
 
 u = np.linspace(0, 1, 401)
 fig, axes = plt.subplots(1, 2, figsize=(9, 3), sharey=True)
@@ -56,8 +56,8 @@ none. The R package uses the same scheme with an additional arm prefix
 (`u0S1.2:yob`); in results the arm appears as `[m0]`/`[m1]` instead.
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-ae = ivmte.load_ae()
-ivmte.MTRSpec.from_formula("~ uSplines(degree=2, knots=[.1, .3, .5, .7]) * yob", ae).names
+ae = pymte.load_ae()
+pymte.MTRSpec.from_formula("~ uSplines(degree=2, knots=[.1, .3, .5, .7]) * yob", ae).names
 ```

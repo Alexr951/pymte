@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ivmte import MTRSpec, fit_propensity, load_ae, load_sim_data
-from ivmte.ivlike import build_moments, fit_ivlike
-from ivmte.weights import conventional_weights, custom_target_gammas, target_gammas_from_weights
+from pymte import MTRSpec, fit_propensity, load_ae, load_sim_data
+from pymte.ivlike import build_moments, fit_ivlike
+from pymte.weights import conventional_weights, custom_target_gammas, target_gammas_from_weights
 
 
 def r_name(name: str) -> str:

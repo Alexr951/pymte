@@ -21,7 +21,7 @@ import pandas as pd
 from formulaic import Formula, ModelSpec
 from numpy.typing import ArrayLike, NDArray
 
-from ivmte.splines import USpline
+from pymte.splines import USpline
 
 _BAD_U_MESSAGE = (
     "The unobservable variable '{u}' must enter as a monomial ('{u}', 'I({u}**2)', ...) "
@@ -201,7 +201,7 @@ class MTRSpec:
         terms : sequence of (u_part, column)
             Each term is the product of a u-part and a data column. The
             u-part is an integer exponent (``0`` for no dependence on ``u``)
-            or a :class:`~ivmte.USpline`; the column is a name in ``data`` or
+            or a :class:`~pymte.USpline`; the column is a name in ``data`` or
             ``None`` for a constant.
         data : pandas.DataFrame
             Data the columns refer to.

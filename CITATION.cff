@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this package, please cite the methodological papers listed under references as well as the software."
-title: "ivmte: instrumental variables and marginal treatment effects in Python"
+title: "pymte: instrumental variables and marginal treatment effects in Python"
 type: software
 authors:
   - family-names: Ronczewski

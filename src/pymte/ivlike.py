@@ -23,8 +23,8 @@ import pandas as pd
 from formulaic import ModelSpec
 from numpy.typing import NDArray
 
-from ivmte.mtr import MTRSpec
-from ivmte.propensity import Propensity
+from pymte.mtr import MTRSpec
+from pymte.propensity import Propensity
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-"""Result container returned by :func:`ivmte.ivmte`."""
+"""Result container returned by :func:`pymte.ivmte`."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ivmte.audit import AuditResult, _fmt
-from ivmte.ivlike import MomentSet
-from ivmte.mtr import MTRSpec
-from ivmte.propensity import Propensity
-from ivmte.weights import TargetGammas
+from pymte.audit import AuditResult, _fmt
+from pymte.ivlike import MomentSet
+from pymte.mtr import MTRSpec
+from pymte.propensity import Propensity
+from pymte.weights import TargetGammas
 
 
 def _to_plain(obj: Any) -> Any:
@@ -38,7 +38,7 @@ def _ci_lines(ci: pd.DataFrame) -> list[str]:
 
 @dataclass
 class IVMTEResult:
-    """Estimates, bounds and diagnostics from :func:`ivmte.ivmte`.
+    """Estimates, bounds and diagnostics from :func:`pymte.ivmte`.
 
     Exactly one of ``bounds`` and ``point_estimate`` is set. Attribute names
     follow the R package with dots replaced by underscores. The inference

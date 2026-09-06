@@ -1,8 +1,8 @@
-# ivmte
+# pymte
 
 Instrumental variables and marginal treatment effects in Python.
 
-`ivmte` estimates treatment parameters such as the ATE, ATT or a policy
+`pymte` estimates treatment parameters such as the ATE, ATT or a policy
 relevant treatment effect from instrumental variables data, using the
 marginal treatment effect (MTE) framework of Heckman and Vytlacil (2005) and
 the moment-based implementation of Mogstad, Santos and Torgovitsky (2018).
@@ -21,7 +21,7 @@ estimands, options and numerical results; the API follows Python conventions.
 ## Installation
 
 ```bash
-pip install ivmte
+pip install pymte
 ```
 
 Linear programs are solved with HiGHS (through SciPy) and quadratically
@@ -29,21 +29,21 @@ constrained programs with Clarabel (through CVXPY); both are installed
 automatically. MOSEK and Gurobi can be used instead when licensed:
 
 ```bash
-pip install "ivmte[mosek]"
-pip install "ivmte[gurobi]"
-pip install "ivmte[plots]"   # matplotlib for plot_mtr, plot_mte, plot_weights
+pip install "pymte[mosek]"
+pip install "pymte[gurobi]"
+pip install "pymte[plots]"   # matplotlib for plot_mtr, plot_mte, plot_weights
 ```
 
 ## Quick start
 
 ```python
-import ivmte
+import pymte
 
-ae = ivmte.load_ae()
+ae = pymte.load_ae()
 ```
 
 The full user guide, a theory primer and the API reference are on
-[Read the Docs](https://ivmte.readthedocs.io).
+[Read the Docs](https://pymte.readthedocs.io).
 
 ## Citing
 

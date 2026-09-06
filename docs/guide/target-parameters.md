@@ -28,16 +28,16 @@ and arbitrary piecewise-constant weights in $u$.
 $\omega_0^\star = -\omega_1^\star$ in all cases.
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-sim = ivmte.load_sim_data()
+sim = pymte.load_sim_data()
 common = dict(
     ivlike="y ~ d + z + d*z",
     m0="~ u + I(u**2) + I(u**3) + x",
     m1="~ u + I(u**2) + I(u**3) + x",
     propensity="d ~ z + x",
 )
-ivmte.ivmte(sim, target="late", late_from={"z": 1}, late_to={"z": 3}, **common).bounds
+pymte.ivmte(sim, target="late", late_from={"z": 1}, late_to={"z": 3}, **common).bounds
 ```
 
 ## Conditioning on covariates
@@ -47,11 +47,11 @@ propensity score is then evaluated at the fixed covariate values and the
 expectation is taken over that cell only:
 
 ```{code-cell} python
-ivmte.ivmte(sim, target="late", late_from={"z": 1}, late_to={"z": 3}, late_x={"x": 2}, **common).bounds
+pymte.ivmte(sim, target="late", late_from={"z": 1}, late_to={"z": 3}, late_x={"x": 2}, **common).bounds
 ```
 
 ```{code-cell} python
-ivmte.ivmte(sim, target="genlate", genlate_lb=0.2, genlate_ub=0.42, **common).bounds
+pymte.ivmte(sim, target="genlate", genlate_lb=0.2, genlate_ub=0.42, **common).bounds
 ```
 
 ```{note}
@@ -72,7 +72,7 @@ names. The following replicates the conditional LATE above by hand:
 ```{code-cell} python
 import pandas as pd
 
-prop = ivmte.fit_propensity(sim, "d ~ z + x")
+prop = pymte.fit_propensity(sim, "d ~ z + x")
 px = (sim["x"] == 2).mean()
 
 def p_at(x, z):
@@ -90,7 +90,7 @@ def knot1(x):
 def knot2(x):
     return p_at(x, 3)
 
-custom = ivmte.ivmte(
+custom = pymte.ivmte(
     sim,
     target_knots0=[knot1, knot2],
     target_knots1=[knot1, knot2],

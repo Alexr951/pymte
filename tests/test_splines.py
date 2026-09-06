@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from ivmte.splines import USpline
+from pymte.splines import USpline
 
 
 def test_matches_splines2_basis_and_integral(oracle):

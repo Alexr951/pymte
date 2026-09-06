@@ -23,9 +23,9 @@ import numpy as np
 import scipy.sparse as sp
 from numpy.typing import NDArray
 
-from ivmte.mtr import MTRSpec
-from ivmte.shape import ShapeConstraints
-from ivmte.solvers import LinearConstraints, SolveResult, solve_lp, solve_qcqp
+from pymte.mtr import MTRSpec
+from pymte.shape import ShapeConstraints
+from pymte.solvers import LinearConstraints, SolveResult, solve_lp, solve_qcqp
 
 
 @dataclass(frozen=True)

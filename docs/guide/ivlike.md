@@ -21,16 +21,16 @@ for two-stage least squares (exogenous covariates must be repeated there,
 as in R):
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-sim = ivmte.load_sim_data()
+sim = pymte.load_sim_data()
 spec = dict(
     target="ate",
     m0="~ uSplines(degree=1, knots=[.25, .5, .75]) + x",
     m1="~ uSplines(degree=1, knots=[.25, .5, .75]) + x",
     propensity="d ~ z + x",
 )
-r = ivmte.ivmte(
+r = pymte.ivmte(
     sim,
     ivlike=[
         "y ~ I(z == 1) + I(z == 2) + I(z == 3) + x",
@@ -56,7 +56,7 @@ r.ivlike.names, r.ivlike.beta.round(4)
 `"intercept"` for the constant and `None` for all of them:
 
 ```{code-cell} python
-ivmte.ivmte(
+pymte.ivmte(
     sim,
     ivlike=["y ~ I(z == 1) + I(z == 2) + I(z == 3) + x", "y ~ d + x", "y ~ d | z"],
     components=[["intercept", "x"], ["d"], None],
@@ -71,7 +71,7 @@ ivmte.ivmte(
 that subsample:
 
 ```{code-cell} python
-ivmte.ivmte(
+pymte.ivmte(
     sim,
     ivlike=["y ~ z + x", "y ~ d + x", "y ~ d | z"],
     subset=["x <= 9", None, "z in [1, 3]"],

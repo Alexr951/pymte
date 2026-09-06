@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.stats import chi2
 
-from ivmte.ivlike import MomentSet
+from pymte.ivlike import MomentSet
 
 
 @dataclass(frozen=True)

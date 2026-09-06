@@ -13,10 +13,10 @@ for subsampling. The audit grid is held fixed across replicates, as in the
 R package.
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-sim = ivmte.load_sim_data()
-r = ivmte.ivmte(
+sim = pymte.load_sim_data()
+r = pymte.ivmte(
     sim,
     target="late",
     late_from={"z": 1},
@@ -64,7 +64,7 @@ For a point identified target the summary shows percentile intervals; a
 normal approximation using the bootstrap standard error is also stored.
 
 ```{code-cell} python
-p = ivmte.ivmte(
+p = pymte.ivmte(
     sim,
     target="ate",
     m0="~ u",

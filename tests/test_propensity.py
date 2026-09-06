@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from ivmte import load_ae, load_sim_data
-from ivmte.propensity import fit_propensity, propensity_from_column
+from pymte import load_ae, load_sim_data
+from pymte.propensity import fit_propensity, propensity_from_column
 
 CASES = [
     ("ae_att_linear_u", "ae", "morekids ~ samesex + yob", "logit"),

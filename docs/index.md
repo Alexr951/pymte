@@ -1,8 +1,8 @@
-# ivmte
+# pymte
 
 Instrumental variables and marginal treatment effects in Python.
 
-`ivmte` implements the moment-based marginal treatment effect (MTE)
+`pymte` implements the moment-based marginal treatment effect (MTE)
 framework of Mogstad, Santos and Torgovitsky (2018). Given a binary
 treatment, an instrument and a specification of the marginal treatment
 response (MTR) functions, it computes point estimates or sharp bounds for

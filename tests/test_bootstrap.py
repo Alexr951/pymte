@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-import ivmte
-from ivmte.bootstrap import bound_ci, bound_pvalue, coef_ci, point_ci, point_pvalues
+import pymte
+from pymte.bootstrap import bound_ci, bound_pvalue, coef_ci, point_ci, point_pvalues
 
 LEVELS = [0.9, 0.95, 0.99]
 
@@ -77,7 +77,7 @@ def test_coef_ci_shape():
 def test_bounds_bootstrap_distribution_matches_r(oracle):
     ref = oracle("ae_att_linear_u_boot50")
     r_draws = _matrix(ref["bounds_bootstraps"])
-    r = ivmte.ivmte(ivmte.load_ae(), bootstraps=50, seed=1, **AE_ARGS)
+    r = pymte.ivmte(pymte.load_ae(), bootstraps=50, seed=1, **AE_ARGS)
     assert r.bootstraps == 50 and r.bounds_bootstraps.shape == (50, 2)
     # Means agree within three standard errors of a 50-draw mean; spreads within a factor 1.5.
     se_mean = r_draws.std(axis=0, ddof=1) / np.sqrt(50)
@@ -94,9 +94,9 @@ def test_bounds_bootstrap_distribution_matches_r(oracle):
 
 def test_point_bootstrap_matches_r_distribution(oracle):
     ref = oracle("sim_spec_test_boot50")
-    sim = ivmte.load_sim_data()
+    sim = pymte.load_sim_data()
     with pytest.warns(UserWarning, match="point identified"):
-        r = ivmte.ivmte(
+        r = pymte.ivmte(
             sim, ivlike="y ~ d + C(z)", target="ate", m0="~ u", m1="~ u", m0_dec=True,
             m1_dec=True, propensity="d ~ C(z)", bootstraps=50, seed=3,
         )  # fmt: skip
@@ -111,8 +111,8 @@ def test_point_bootstrap_matches_r_distribution(oracle):
 
 def test_specification_test_runs_when_criterion_positive(oracle):
     ref = oracle("sim_lp_spec_test_boot50")
-    sim = ivmte.load_sim_data()
-    r = ivmte.ivmte(
+    sim = pymte.load_sim_data()
+    r = pymte.ivmte(
         sim, ivlike="y ~ d + C(z)", target="ate", m0="~ u", m1="~ u", propensity="d ~ C(z)",
         point=False, bootstraps=50, seed=2,
     )  # fmt: skip
@@ -122,17 +122,17 @@ def test_specification_test_runs_when_criterion_positive(oracle):
 
 
 def test_subsampling_and_argument_checks():
-    sim = ivmte.load_sim_data()
-    r = ivmte.ivmte(
+    sim = pymte.load_sim_data()
+    r = pymte.ivmte(
         sim, ivlike="y ~ d + z + d*z", target="late", late_from={"z": 1}, late_to={"z": 3},
         m0="~ u + I(u^2) + I(u^3) + x", m1="~ u + I(u^2) + I(u^3) + x", propensity="d ~ z + x",
         bootstraps=4, bootstraps_m=1000, bootstraps_replace=False, seed=0,
     )  # fmt: skip
     assert r.bounds_bootstraps.shape == (4, 2)
     with pytest.raises(ValueError, match="at least 2"):
-        ivmte.ivmte(sim, ivlike="y ~ d + C(z)", target="ate", m0="~ u", m1="~ u",
+        pymte.ivmte(sim, ivlike="y ~ d + C(z)", target="ate", m0="~ u", m1="~ u",
                     propensity="d ~ C(z)", bootstraps=1)  # fmt: skip
     with pytest.raises(ValueError, match="cannot exceed"):
-        ivmte.ivmte(sim, ivlike="y ~ d + C(z)", target="ate", m0="~ u", m1="~ u",
+        pymte.ivmte(sim, ivlike="y ~ d + C(z)", target="ate", m0="~ u", m1="~ u",
                     propensity="d ~ C(z)", point=True, bootstraps=2, bootstraps_m=6000,
                     bootstraps_replace=False)  # fmt: skip

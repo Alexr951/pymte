@@ -20,10 +20,10 @@ recentred at their sample values (Hall and Horowitz 1996), which gives a
 p-value that does not rely on the first-step estimation being negligible.
 
 ```{code-cell} python
-import ivmte
+import pymte
 
-sim = ivmte.load_sim_data()
-r = ivmte.ivmte(
+sim = pymte.load_sim_data()
+r = pymte.ivmte(
     sim,
     target="ate",
     m0="~ u",
@@ -48,7 +48,7 @@ sample's minimum criterion, and the p-value is the share of replicates
 whose statistic is at least the sample criterion.
 
 ```{code-cell} python
-b = ivmte.ivmte(
+b = pymte.ivmte(
     sim,
     target="ate",
     m0="~ u",

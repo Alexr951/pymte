@@ -11,7 +11,7 @@ from Gurobi in some cases.
 import numpy as np
 import pytest
 
-import ivmte
+import pymte
 
 AE_IVLIKE = "worked ~ morekids + samesex + morekids*samesex"
 AE_PROP = "morekids ~ samesex + yob"
@@ -27,12 +27,12 @@ MULTI = ["y ~ I(z == 1) + I(z == 2) + I(z == 3) + x", "y ~ d + x", "y ~ d | z"]
 
 @pytest.fixture(scope="module")
 def ae():
-    return ivmte.load_ae()
+    return pymte.load_ae()
 
 
 @pytest.fixture(scope="module")
 def sim():
-    return ivmte.load_sim_data()
+    return pymte.load_sim_data()
 
 
 # (oracle case, published bounds, audit rounds in the vignette, kwargs)
@@ -137,7 +137,7 @@ BOUNDS = {
 def test_published_bounds(oracle, ae, sim, case):
     published, _rounds, kwargs = BOUNDS[case]
     data = ae if case.startswith("ae") else sim
-    r = ivmte.ivmte(data, seed=0, **kwargs)
+    r = pymte.ivmte(data, seed=0, **kwargs)
     assert r.bounds is not None
     np.testing.assert_allclose(r.bounds, published, atol=1e-6)
     assert r.audit is not None
@@ -151,7 +151,7 @@ def test_published_bounds(oracle, ae, sim, case):
 
 
 def test_custom_weights_replicate_conditional_late(sim):
-    prop = ivmte.fit_propensity(sim, "d ~ z + x")
+    prop = pymte.fit_propensity(sim, "d ~ z + x")
     px = (sim["x"] == 2).mean()
 
     def p_at(x, z):
@@ -171,7 +171,7 @@ def test_custom_weights_replicate_conditional_late(sim):
     def knot2(x):
         return p_at(x, 3)
 
-    r = ivmte.ivmte(
+    r = pymte.ivmte(
         sim,
         ivlike="y ~ d + z + d*z",
         target_knots0=[knot1, knot2],
@@ -217,7 +217,7 @@ def test_published_point_estimates(oracle, ae, sim, case):
     published, kwargs = POINTS[case]
     data = ae if case.startswith("ae") else sim
     with pytest.warns(UserWarning, match="point identified") if "point" not in kwargs else _noop():
-        r = ivmte.ivmte(data, **kwargs)
+        r = pymte.ivmte(data, **kwargs)
     assert r.bounds is None
     assert r.point_estimate == pytest.approx(published, abs=1e-6)
     try:
@@ -248,7 +248,7 @@ class _noop:
 
 def test_equal_coef_regression_mtr_coefficients(sim):
     with pytest.warns(UserWarning, match="point identified"):
-        r = ivmte.ivmte(
+        r = pymte.ivmte(
             sim, outcome="y", target="ate", m0="~ x + u", m1="~ x + u", equal_coef="~ 0 + x",
             propensity="d ~ x + C(z)",
         )  # fmt: skip
@@ -263,16 +263,16 @@ def test_equal_coef_regression_mtr_coefficients(sim):
 
 def test_regression_qcqp_bounds_contain_least_squares_target(sim):
     with pytest.warns(UserWarning, match="point identified"):
-        ols = ivmte.ivmte(
+        ols = pymte.ivmte(
             sim, outcome="y", target="ate", m0="~ u", m1="~ u", propensity="d ~ C(z)"
         )
-    r = ivmte.ivmte(
+    r = pymte.ivmte(
         sim, outcome="y", target="ate", m0="~ u", m1="~ u", propensity="d ~ C(z)", point=False,
         criterion_tol=1e-3,
     )  # fmt: skip
     assert r.method == "qcqp" and r.bounds is not None
     assert r.bounds[0] - 1e-6 <= ols.point_estimate <= r.bounds[1] + 1e-6
-    tight = ivmte.ivmte(
+    tight = pymte.ivmte(
         sim, outcome="y", target="ate", m0="~ u", m1="~ u", propensity="d ~ C(z)", point=False,
         criterion_tol=0,
     )  # fmt: skip
@@ -283,7 +283,7 @@ def test_regression_qcqp_bounds_contain_least_squares_target(sim):
 
 
 def test_result_summary_and_dict(ae):
-    r = ivmte.ivmte(
+    r = pymte.ivmte(
         ae, target="att", m0="~ u + yob", m1="~ u + yob", ivlike=AE_IVLIKE, propensity=AE_PROP
     )
     text = r.summary()
