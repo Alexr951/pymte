@@ -3,6 +3,11 @@
 ```{toctree}
 :maxdepth: 1
 
+mtr-specification
+splines
+propensity
+target-parameters
+ivlike
+shape-restrictions
+audit
 ```
-
-The user guide pages are written milestone by milestone.
