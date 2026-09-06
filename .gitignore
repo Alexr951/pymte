@@ -8,5 +8,6 @@ dist/
 .mypy_cache/
 .ruff_cache/
 docs/_build/
+docs/generated/
 docs/jupyter_execute/
 .ipynb_checkpoints/
