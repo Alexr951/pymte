@@ -27,3 +27,8 @@ All notable changes to this project are documented here. The format follows
   least squares.
 - The `ivmte()` estimator and the `IVMTEResult` container with `summary()`
   and `to_dict()`.
+- Bootstrap inference: nonparametric bootstrap, m-out-of-n and subsampling;
+  backward and forward confidence regions and p-values for bounds;
+  percentile and normal intervals for point estimates and coefficients;
+  bootstrapped Hansen J p-value; the misspecification test of the R package
+  for the partially identified moment approach.

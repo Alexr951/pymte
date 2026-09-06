@@ -10,4 +10,6 @@ target-parameters
 ivlike
 shape-restrictions
 audit
+confidence-intervals
+specification-tests
 ```
