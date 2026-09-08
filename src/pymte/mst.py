@@ -989,10 +989,9 @@ def ivmte_estimate(
         method = "qcqp"
         if not boot:
             full_rank = np.linalg.matrix_rank(model.x_reg) == model.x_reg.shape[1]
-            if point is None:
-                point = full_rank
-            if point and not full_rank:
-                raise ValueError("The MTR coefficients are not point identified by the regression")
+            # As in R, a collinear design falls through to the bounds even
+            # when point identification was requested.
+            point = full_rank if point is None else point and full_rank
             if point:
                 msg = "MTR is point identified via linear regression."
                 if shape_given:
