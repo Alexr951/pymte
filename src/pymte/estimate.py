@@ -13,7 +13,7 @@ import pandas as pd
 from formulaic import Formula
 from numpy.typing import NDArray
 
-from pymte.audit import AuditError, AuditResult, run_audit
+from pymte.audit import AuditError, AuditResult, audit
 from pymte.bootstrap import (
     BootstrapRetry,
     Replicate,
@@ -28,16 +28,17 @@ from pymte.ivlike import MomentSet, build_moments
 from pymte.lp import (
     Criterion,
     L1Criterion,
-    LSCriterion,
-    equal_coef_matrix,
-    specification_statistic,
+    default_solver,
+    lp_setup_criterion_boot,
+    lp_setup_equal_coef,
+    qp_setup,
+    run_lp,
 )
+from pymte.monobound import Grids
 from pymte.mtr import MTRSpec
 from pymte.point import GMMResult, gmm, least_squares
 from pymte.propensity import Propensity, fit_propensity, propensity_from_column
 from pymte.results import IVMTEResult
-from pymte.shape import Grids, build_grids
-from pymte.solvers import default_solver
 from pymte.splines import USpline
 from pymte.weights import (
     TARGETS,
@@ -148,7 +149,7 @@ def _prepare(data: pd.DataFrame, o: SimpleNamespace) -> _Model:
     equal = None
     if o.equal_coef is not None:
         eq_spec = MTRSpec.from_formula(o.equal_coef, data, o.uname)
-        equal = equal_coef_matrix(spec0, spec1, eq_spec.names)
+        equal = lp_setup_equal_coef(spec0, spec1, eq_spec.names)
     names = tuple(f"[m0]{v}" for v in spec0.names) + tuple(f"[m1]{v}" for v in spec1.names)
     outcome = o.outcome if o.outcome is not None else o.ivlike[0].split("~")[0].strip()
     model = _Model(
@@ -428,7 +429,7 @@ def ivmte(
             warnings.warn(msg, stacklevel=2)
             theta, method = least_squares(model.x_reg, model.y, model.equal), "ols"
         else:
-            crit = LSCriterion.from_regression(model.x_reg, model.y)
+            crit = qp_setup(model.x_reg, model.y)
             method = "qcqp"
 
     if point:
@@ -450,24 +451,25 @@ def ivmte(
 
     # -- partial identification ------------------------------------------------
     solver_name = solver or default_solver(qcqp=method == "qcqp")
-    xvars = sorted(set(model.spec0.covariates) | set(model.spec1.covariates))
     log.append("Performing audit procedure...")
     log.append(f"    Solver: {solver_name}")
-    audit, grids = _audit_with_expansion(
-        model, crit, xvars, restrictions, o, rng, solver_name, log
-    )
+    audit_res = _audit_with_expansion(model, crit, restrictions, o, rng, solver_name, log)
     gstar_coef = pd.DataFrame(
-        {"min": audit.theta_min, "max": audit.theta_max, "criterion": audit.theta_crit},
+        {
+            "min": audit_res.theta_min,
+            "max": audit_res.theta_max,
+            "criterion": audit_res.theta_crit,
+        },
         index=list(model.names),
     )
     res = result(
-        bounds=(audit.lower, audit.upper), point_estimate=None, mtr_coef=None,
+        bounds=(audit_res.lower, audit_res.upper), point_estimate=None, mtr_coef=None,
         gstar_coef=gstar_coef, moments=model.moments.n_independent if model.moments else None,
-        ivlike=model.moments, audit=audit, criterion=audit.criterion, j_test=None,
+        ivlike=model.moments, audit=audit_res, criterion=audit_res.criterion, j_test=None,
         solver=solver_name, method=method,
     )  # fmt: skip
     if bootstraps:
-        _bootstrap_bounds(res, model, o, grids, rng, solver_name)
+        _bootstrap_bounds(res, model, o, rng, solver_name)
     _emit(log, noisy)
     return res
 
@@ -483,19 +485,18 @@ def _criterion(model: _Model) -> Criterion:
             np.hstack([model.moments.gamma0, model.moments.gamma1]), model.moments.beta
         )
     assert model.x_reg is not None
-    return LSCriterion.from_regression(model.x_reg, model.y)
+    return qp_setup(model.x_reg, model.y)
 
 
 def _audit_with_expansion(
     model: _Model,
     crit: Criterion,
-    xvars: list[str],
     restrictions: dict[str, Any],
     o: SimpleNamespace,
     rng: np.random.Generator,
     solver: str,
     log: list[str],
-) -> tuple[AuditResult, Grids]:
+) -> AuditResult:
     """Run the audit, enlarging the initial grid when a bound problem is unbounded.
 
     The R package retries up to three times with an initial grid 1.5 times
@@ -503,13 +504,8 @@ def _audit_with_expansion(
     """
     nx, nu = o.initgrid_nx, o.initgrid_nu
     for attempt in range(4):
-        grids = build_grids(
-            model.data, xvars, initgrid_nx=nx, initgrid_nu=nu, audit_nx=o.audit_nx,
-            audit_nu=o.audit_nu, initgrid_x=o.initgrid_x, initgrid_u=o.initgrid_u,
-            audit_x=o.audit_x, audit_u=o.audit_u, rng=rng,
-        )  # fmt: skip
         try:
-            return _run_audit(model, crit, grids, restrictions, o, solver, log), grids
+            return _run_audit(model, crit, None, restrictions, o, solver, log, nx, nu, rng)
         except AuditError as err:
             if err.status not in (3, 4, 6) or attempt == 3:
                 raise
@@ -524,16 +520,23 @@ def _audit_with_expansion(
 def _run_audit(
     model: _Model,
     crit: Criterion,
-    grids: Grids,
+    grids: Grids | None,
     restrictions: dict[str, Any],
     o: SimpleNamespace,
     solver: str,
     log: list[str],
+    nx: int | None = None,
+    nu: int | None = None,
+    rng: np.random.Generator | None = None,
 ) -> AuditResult:
-    return run_audit(
-        model.spec0, model.spec1, crit, model.gstar, grids, restrictions, equal=model.equal,
+    return audit(
+        model.spec0, model.spec1, crit, model.gstar, model.data, restrictions, equal=model.equal,
         criterion_tol=o.criterion_tol, audit_tol=o.audit_tol, audit_add=o.audit_add,
-        audit_max=o.audit_max, solver=solver, solver_options=o.solver_options, log=log,
+        audit_max=o.audit_max, initgrid_nx=nx or o.initgrid_nx, initgrid_nu=nu or o.initgrid_nu,
+        audit_nx=o.audit_nx, audit_nu=o.audit_nu, initgrid_x=o.initgrid_x,
+        initgrid_u=o.initgrid_u, audit_x=o.audit_x, audit_u=o.audit_u, audit_grid=grids, rng=rng,
+        solver=solver, solver_options_criterion=o.solver_options,
+        solver_options_bounds=o.solver_options, log=log,
     )  # fmt: skip
 
 
@@ -541,12 +544,12 @@ def _bootstrap_bounds(
     res: IVMTEResult,
     model: _Model,
     o: SimpleNamespace,
-    grids: Grids,
     rng: np.random.Generator,
     solver: str,
 ) -> None:
     """Bootstrap the bounds with the audit grid held fixed, as the R package does."""
     assert res.bounds is not None and res.audit is not None
+    grids = res.audit.grids
     n = model.n
     m = o.bootstraps_m or n
     spec_test = o.specification_test and model.moments is not None and res.audit.criterion > 0
@@ -562,23 +565,20 @@ def _bootstrap_bounds(
         ):
             raise BootstrapRetry("a factor level is missing from the resample")
         crit = _criterion(bm)
-        audit = _run_audit(bm, crit, grids, bm.restrictions(o), o, solver, [])
+        rep = _run_audit(bm, crit, grids, bm.restrictions(o), o, solver, [])
         stat = None
         if spec_test:
             assert isinstance(crit, L1Criterion) and isinstance(orig, L1Criterion)
-            stat = specification_statistic(
-                crit,
-                orig,
-                orig_crit,
-                o.criterion_tol,
-                audit.constraints,
-                bm.equal,
-                solver,
-                o.solver_options,
+            c, boot_model = lp_setup_criterion_boot(
+                crit, orig, orig_crit, o.criterion_tol, rep.constraints, bm.equal
             )
-        return Replicate(
-            bounds=(audit.lower, audit.upper), propensity=bm.prop.params, spec_stat=stat
-        )
+            sol = run_lp(c, boot_model, "min", solver, o.solver_options)
+            if sol.obj is None:
+                raise RuntimeError(
+                    f"The specification test LP returned no solution ({sol.status_str})"
+                )
+            stat = float(sol.obj)
+        return Replicate(bounds=(rep.lower, rep.upper), propensity=bm.prop.params, spec_stat=stat)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

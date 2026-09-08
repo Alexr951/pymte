@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from pymte.audit import AuditResult, _fmt
+from pymte.audit import AuditResult, fmt_result
 from pymte.ivlike import MomentSet
 from pymte.mtr import MTRSpec
 from pymte.propensity import Propensity
@@ -31,7 +31,7 @@ def _to_plain(obj: Any) -> Any:
 
 def _ci_lines(ci: pd.DataFrame) -> list[str]:
     return [
-        f"    {float(level):.0%}: [{_fmt(row['lower'])}, {_fmt(row['upper'])}]"
+        f"    {float(level):.0%}: [{fmt_result(row['lower'])}, {fmt_result(row['upper'])}]"
         for level, row in zip(ci.index.to_numpy(dtype=float), ci.to_dict("records"), strict=True)
     ]
 
@@ -159,38 +159,40 @@ class IVMTEResult:
         lines = []
         if self.bounds is not None:
             lines.append(
-                f"Bounds on the target parameter: [{_fmt(self.bounds[0])}, {_fmt(self.bounds[1])}]"
+                f"Bounds on the target parameter: [{fmt_result(self.bounds[0])}, {fmt_result(self.bounds[1])}]"
             )
             assert self.audit is not None
             lines.append(f"Audit terminated successfully after {self.audit.audit_count} round(s)")
         else:
             assert self.point_estimate is not None
-            lines.append(f"Point estimate of the target parameter: {_fmt(self.point_estimate)}")
+            lines.append(
+                f"Point estimate of the target parameter: {fmt_result(self.point_estimate)}"
+            )
         lines.append(f"MTR coefficients: {s0.n_coef + s1.n_coef}")
         if self.ivlike is not None:
             lines.append(f"Independent/total moments: {self.moments}/{self.ivlike.n_moments}")
         if self.criterion is not None:
-            lines.append(f"Minimum criterion: {_fmt(self.criterion)}")
+            lines.append(f"Minimum criterion: {fmt_result(self.criterion)}")
         lines.append(f"Solver: {self.solver}")
         if self.bootstraps:
             if self.bounds_ci is not None:
                 lines.append(f"\nBootstrapped confidence intervals ({self.ci_type}):")
                 lines += _ci_lines(self.bounds_ci[self.ci_type])
                 if self.p_value is not None:
-                    lines.append(f"p-value: {_fmt(self.p_value[self.ci_type])}")
+                    lines.append(f"p-value: {fmt_result(self.p_value[self.ci_type])}")
                 if self.specification_p_value is not None:
                     lines.append(
                         "Bootstrapped specification test p-value: "
-                        f"{_fmt(self.specification_p_value)}"
+                        f"{fmt_result(self.specification_p_value)}"
                     )
             elif self.point_estimate_ci is not None:
                 lines.append("\nBootstrapped confidence intervals (nonparametric):")
                 lines += _ci_lines(self.point_estimate_ci["nonparametric"])
                 if self.p_value is not None:
-                    lines.append(f"p-value: {_fmt(self.p_value['nonparametric'])}")
+                    lines.append(f"p-value: {fmt_result(self.p_value['nonparametric'])}")
                 if self.j_test is not None and "bootstrap_p_value" in self.j_test:
                     lines.append(
-                        f"Bootstrapped J-test p-value: {_fmt(self.j_test['bootstrap_p_value'])}"
+                        f"Bootstrapped J-test p-value: {fmt_result(self.j_test['bootstrap_p_value'])}"
                     )
             lines.append(f"Number of bootstraps: {self.bootstraps}")
         return "\n".join(lines)
