@@ -18,6 +18,7 @@ from pymte.testfunctions_splines import (
     gen_gamma_splines_tt,
     s_ols_splines,
     s_tsls_splines,
+    spline_basis,
     spline_int,
     w_att_splines,
 )
@@ -32,6 +33,21 @@ COMPONENTS = [["intercept", "d"], ["d"], ["d", "x"]]
 VARS = ["ey", "eyd", "p", "x", "z"]
 MEANS = VARS + [f"{a} * {b}" for a in VARS for b in VARS[2:]]
 SHAPE = {"m1_ub": 55, "m0_lb": 0, "mte_inc": True}
+
+
+def design0(g):
+    """Basis of m0 in the package's column order: u^2, the degree-1 spline, x times the step spline."""
+    return np.column_stack(
+        [
+            g.u**2,
+            spline_basis(g.u, (0.4,), 1, True),
+            spline_basis(g.u, (0.2, 0.5, 0.8), 0, True) * g.x.to_numpy()[:, None],
+        ]
+    )
+
+
+def design1(g):
+    return np.column_stack([np.ones(len(g)), g.x, spline_basis(g.u, (0.3, 0.6), 2, False)])
 
 
 @pytest.fixture(scope="module")
@@ -125,7 +141,7 @@ def test_gamma_moments(result, hand):
 
 def test_lp_problem(result, hand, hand_lp, pop, oracle):
     gamma = np.array([np.concatenate(g) for g in hand["gammas"]])
-    amono0, amono1, d0, d1 = grid_designs(result)
+    amono0, amono1, d0, d1 = grid_designs(oracle("tt_splines")["audit_grid"], design0, design1)
     dts = pop["data_dist"]
     maxy = float(max(dts["ey0"].max(), dts["ey1"].max()))
     miny = float(min(dts["ey0"].min(), dts["ey1"].min()))

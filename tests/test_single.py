@@ -22,6 +22,14 @@ MEANS = [
 ]  # fmt: skip
 
 
+def design0(g):
+    return np.column_stack([np.ones(len(g)), g.x1, g.x2 * g.u, g.x2 * g.u**2])
+
+
+def design1(g):
+    return np.column_stack([np.ones(len(g)), g.x1, g.u, g.x1 * g.x2, g.x1 * g.u, g.x2 * g.u**2])
+
+
 @pytest.fixture(scope="module")
 def pop():
     return gendist_covariates()
@@ -102,7 +110,7 @@ def test_gamma_moments(result, hand):
 def test_lp_problem(result, hand, hand_lp, pop, oracle):
     gamma = np.array([np.concatenate(g) for g in hand["g_ols"]])
     beta = hand["ols"][1:3]
-    mono0, mono1, _, _ = grid_designs(result)
+    mono0, mono1, _, _ = grid_designs(oracle("tt_single")["audit_grid"], design0, design1)
     y = pop["data_full"]["ey"]
     miny, maxy = float(y.min()), float(y.max())
     z0, z1 = np.zeros_like(mono0), np.zeros_like(mono1)

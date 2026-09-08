@@ -16,15 +16,33 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from numpy.typing import ArrayLike, NDArray
+from scipy.interpolate import BSpline
 
-from pymte.splines import USpline
+
+def _bspline(knots: Sequence[float], degree: int) -> BSpline:
+    # The basis of splines2::bSpline with boundary knots 0 and 1, built
+    # directly from scipy so that these helpers do not depend on the package.
+    t = np.r_[np.zeros(degree + 1), np.sort(knots), np.ones(degree + 1)]
+    return BSpline(t, np.eye(len(t) - degree - 1), degree, extrapolate=False)
+
+
+def spline_basis(
+    u: ArrayLike, knots: Sequence[float], degree: int, intercept: bool = False
+) -> NDArray[np.float64]:
+    """B-spline basis with boundary knots 0 and 1 evaluated at ``u`` (``splines2::bSpline``)."""
+    x = np.asarray(u, dtype=float)
+    out = np.asarray(_bspline(knots, degree)(np.where(x >= 1.0, np.nextafter(1.0, 0.0), x)))
+    return out if intercept else out[:, 1:]
 
 
 def spline_int(
     ub: ArrayLike, lb: ArrayLike, knots: Sequence[float], degree: int, intercept: bool = False
 ) -> NDArray[np.float64]:
     """Integrals of the B-spline basis with boundary knots 0 and 1 from ``lb`` to ``ub``."""
-    return USpline(degree, tuple(knots), intercept).integral(lb, ub)
+    anti = _bspline(knots, degree).antiderivative()
+    lo, hi = np.broadcast_arrays(np.atleast_1d(lb).astype(float), np.atleast_1d(ub).astype(float))
+    out = np.asarray(anti(hi) - anti(lo))
+    return out if intercept else out[:, 1:]
 
 
 def s_ols_splines(x: ArrayLike | None, d: int, j: int, exx: NDArray[np.float64]) -> float:
