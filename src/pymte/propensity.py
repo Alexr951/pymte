@@ -77,29 +77,43 @@ def _inverse_link(index: NDArray[np.float64], link: str | None) -> NDArray[np.fl
     return np.asarray(np.clip(out, 0.0, 1.0), dtype=float)
 
 
-def fit_propensity(data: pd.DataFrame, formula: str, link: str = "logit") -> Propensity:
-    """Fit a binary choice model for the treatment.
+def propensity(
+    formula: str, data: pd.DataFrame, link: str = "logit", treat: str | None = None
+) -> Propensity:
+    """Estimate propensity scores, or read them from a column.
 
     Parameters
     ----------
+    formula : str
+        Two-sided formula, e.g. ``"d ~ z + x"``, or the name of a column
+        holding propensity scores in [0, 1] (then ``treat`` is required).
     data : pandas.DataFrame
         Estimation sample.
-    formula : str
-        Two-sided formula, e.g. ``"d ~ z + x"``.
     link : {"logit", "probit", "linear"}, default "logit"
         Logistic regression, probit, or a linear probability model. Linear
         fitted values are truncated to [0, 1].
+    treat : str, optional
+        Name of the treatment variable when ``formula`` names a column.
 
     Returns
     -------
     Propensity
     """
+    if "~" not in formula:
+        if treat is None:
+            raise ValueError("'treat' is required when 'propensity' names a column of scores")
+        phat = np.asarray(data[formula], dtype=float)
+        if phat.min() < 0 or phat.max() > 1:
+            raise ValueError("Provided propensity scores are not between 0 and 1")
+        return Propensity(
+            treat=treat, phat=phat, link=None, params=None, names=(), _spec=None, variable=formula
+        )
     link = link.lower()
     if link not in LINKS:
         raise ValueError(f"link must be one of {LINKS}, got {link!r}")
-    lhs, sep, rhs = formula.partition("~")
+    lhs, _, rhs = formula.partition("~")
     treat = lhs.strip()
-    if not sep or not treat:
+    if not treat:
         raise ValueError(f"The propensity formula needs a left-hand side: {formula!r}")
     matrix = ModelSpec.from_spec(rhs).get_model_matrix(data)
     x = np.asarray(matrix, dtype=float)
@@ -119,28 +133,4 @@ def fit_propensity(data: pd.DataFrame, formula: str, link: str = "logit") -> Pro
         names=tuple(matrix.columns),
         _spec=cast(ModelSpec, matrix.model_spec),
         formula=formula,
-    )
-
-
-def propensity_from_column(data: pd.DataFrame, variable: str, treat: str) -> Propensity:
-    """Use an existing column of propensity scores.
-
-    Parameters
-    ----------
-    data : pandas.DataFrame
-        Estimation sample.
-    variable : str
-        Column holding the scores, which must lie in [0, 1].
-    treat : str
-        Name of the treatment variable.
-
-    Returns
-    -------
-    Propensity
-    """
-    phat = np.asarray(data[variable], dtype=float)
-    if phat.min() < 0 or phat.max() > 1:
-        raise ValueError("Provided propensity scores are not between 0 and 1")
-    return Propensity(
-        treat=treat, phat=phat, link=None, params=None, names=(), _spec=None, variable=variable
     )
