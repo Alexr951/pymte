@@ -4,7 +4,7 @@ import pytest
 from scipy.integrate import quad
 
 from pymte import load_ae
-from pymte.mtr import MTRSpec
+from pymte.mtr import MTRSpec, gen_gamma, polyparse
 
 
 @pytest.fixture(scope="module")
@@ -30,14 +30,14 @@ def ae():
     ],
 )
 def test_polynomial_terms(ae, formula, names, exponents):
-    spec = MTRSpec.from_formula(formula, ae)
+    spec = polyparse(formula, ae)
     assert spec.names == names
     assert spec.exponents == exponents
     assert not spec.splines
 
 
 def test_spline_terms_and_names(ae):
-    spec = MTRSpec.from_formula("~ uSplines(degree = 2, knots = c(.1, .3, .5, .7))*yob", ae)
+    spec = polyparse("~ uSplines(degree = 2, knots = c(.1, .3, .5, .7))*yob", ae)
     assert spec.poly_names == ("Intercept", "yob")
     assert len(spec.splines) == 1
     block = spec.splines[0]
@@ -50,7 +50,7 @@ def test_spline_terms_and_names(ae):
 
 def test_two_splines_indexed_in_term_order():
     data = pd.DataFrame({"x": [-1.0, 0.0, 1.0]})
-    spec = MTRSpec.from_formula(
+    spec = polyparse(
         "~ 0 + x:uSplines(degree=0, knots=c(0.2, 0.5, 0.8), intercept=True)"
         " + uSplines(degree=1, knots=c(0.4), intercept=True) + I(u^2)",
         data,
@@ -69,7 +69,7 @@ def test_two_splines_indexed_in_term_order():
 
 
 def test_uname(ae):
-    spec = MTRSpec.from_formula("~ v + I(v^2) + yob + v*yob", ae, uname="v")
+    spec = polyparse("~ v + I(v^2) + yob + v*yob", ae, uname="v")
     assert spec.exponents == (0, 1, 2, 0, 1)
     assert "v" in spec.names and "u" not in spec.covariates
 
@@ -77,17 +77,15 @@ def test_uname(ae):
 @pytest.mark.parametrize("formula", ["~ log(u) + yob", "~ I((yob*u)^2)", "~ u:I(u^2)", "~ exp(u)"])
 def test_non_monomial_u_is_rejected(ae, formula):
     with pytest.raises(ValueError, match="must enter as a monomial"):
-        MTRSpec.from_formula(formula, ae)
+        polyparse(formula, ae)
 
 
 def test_gamma_matches_numerical_integration(ae):
     data = ae.head(5)
-    spec = MTRSpec.from_formula(
-        "~ u + I(u^2) + yob + uSplines(degree=2, knots=c(.3, .6))*yob", data
-    )
+    spec = polyparse("~ u + I(u^2) + yob + uSplines(degree=2, knots=c(.3, .6))*yob", data)
     rng = np.random.default_rng(0)
     lb, ub, w = rng.uniform(0, 0.5, 5), rng.uniform(0.5, 1, 5), rng.normal(size=5)
-    gamma = spec.gamma(data, lb, ub, w)
+    gamma = gen_gamma(spec, data, lb, ub, w, means=False)
     for i in range(5):
         row = data.iloc[[i]]
         for j in range(spec.n_coef):
@@ -97,9 +95,9 @@ def test_gamma_matches_numerical_integration(ae):
 
 def test_gamma_rows_restricts_and_design_evaluates(ae):
     data = ae.head(6)
-    spec = MTRSpec.from_formula("~ u + yob", data)
+    spec = polyparse("~ u + yob", data)
     rows = np.array([True, False, True, False, True, False])
-    g = spec.gamma(data, 0.0, 0.5, 2.0, rows=rows)
+    g = gen_gamma(spec, data, 0.0, 0.5, 2.0, rows=rows, means=False)
     assert g.shape == (3, 3)
     np.testing.assert_allclose(g[:, 1], 2.0 * 0.5**2 / 2)
     d = spec.design(data, np.full(6, 0.25))
@@ -111,7 +109,7 @@ def test_from_columns_matches_formula(ae):
     from pymte.splines import USpline
 
     data = ae.head(50)
-    by_formula = MTRSpec.from_formula(
+    by_formula = polyparse(
         "~ u + I(u^2) + yob + u:yob + uSplines(degree=2, knots=c(.3, .6)):yob", data
     )
     by_columns = MTRSpec.from_columns(
@@ -125,7 +123,8 @@ def test_from_columns_matches_formula(ae):
         by_columns.design(data.head(7), u), by_formula.design(data.head(7), u)
     )
     np.testing.assert_allclose(
-        by_columns.gamma(data, 0.1, 0.8, 1.0), by_formula.gamma(data, 0.1, 0.8, 1.0)
+        gen_gamma(by_columns, data, 0.1, 0.8, means=False),
+        gen_gamma(by_formula, data, 0.1, 0.8, means=False),
     )
     with pytest.raises(ValueError, match="not found"):
         MTRSpec.from_columns([(1, "nope")], data)

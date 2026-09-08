@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from pymte.mtr import MTRSpec
+from pymte.mtr import MTRSpec, gen_gamma
 from pymte.propensity import Propensity
 
 TARGETS = ("ate", "att", "atu", "late", "avglate", "genlate")
@@ -151,8 +151,8 @@ def target_gammas_from_weights(
     spec0: MTRSpec, spec1: MTRSpec, data: pd.DataFrame, w: TargetWeights
 ) -> TargetGammas:
     """Integrate the MTR bases against interval weights and average over rows."""
-    g0 = -spec0.gamma(data, w.lb, w.ub, w.mult, rows=w.rows).mean(axis=0)
-    g1 = spec1.gamma(data, w.lb, w.ub, w.mult, rows=w.rows).mean(axis=0)
+    g0 = -gen_gamma(spec0, data, w.lb, w.ub, w.mult, rows=w.rows)
+    g1 = gen_gamma(spec1, data, w.lb, w.ub, w.mult, rows=w.rows)
     return TargetGammas(g0, g1, w, int(w.rows.sum()))
 
 
@@ -232,6 +232,6 @@ def custom_target_gammas(
         total = np.zeros(spec.n_coef)
         for i, w in enumerate(weights):
             mult = _evaluate_piecewise(data, w)
-            total += spec.gamma(data, edges[i], edges[i + 1], mult).mean(axis=0)
+            total += gen_gamma(spec, data, edges[i], edges[i + 1], mult)
         gammas.append(total)
     return TargetGammas(gammas[0], gammas[1], None, len(data))

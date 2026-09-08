@@ -23,7 +23,7 @@ import pandas as pd
 from formulaic import ModelSpec
 from numpy.typing import NDArray
 
-from pymte.mtr import MTRSpec
+from pymte.mtr import MTRSpec, gen_gamma
 from pymte.propensity import Propensity
 
 
@@ -255,8 +255,8 @@ def build_moments(
         sub = data.loc[fit.rows]
         psub = p[fit.rows]
         for j, name in enumerate(fit.components):
-            g0 = spec0.gamma(sub, psub, 1.0, fit.s0[:, j])
-            g1 = spec1.gamma(sub, 0.0, psub, fit.s1[:, j])
+            g0 = gen_gamma(spec0, sub, psub, 1.0, fit.s0[:, j], means=False)
+            g1 = gen_gamma(spec1, sub, 0.0, psub, fit.s1[:, j], means=False)
             names.append(f"{i + 1}:{name}")
             betas.append(fit.beta[j])
             g0m.append(g0.mean(axis=0))

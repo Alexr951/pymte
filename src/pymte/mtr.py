@@ -7,6 +7,11 @@ of a covariate part (evaluated by :mod:`formulaic`) and a *u-part*, which is
 either a monomial ``u**k`` or one B-spline basis function in ``u``. Because
 the u-part is known analytically, integrals of the MTR against weights in
 ``u`` are computed exactly.
+
+:func:`polyparse` parses a formula into an :class:`MTRSpec`, :func:`gen_gamma`
+integrates the terms against interval weights (with :func:`gen_gamma_splines`
+for the spline blocks), following the functions of the same names in the R
+package.
 """
 
 from __future__ import annotations
@@ -74,10 +79,11 @@ class SplineBlock:
 class MTRSpec:
     """A parsed MTR specification for one treatment arm.
 
-    Instances are created with :meth:`from_formula`. The materialised design
-    is evaluated with the unobservable set to one, so every column of
-    :meth:`covariate_matrix` is the covariate part of a term; the u-part is
-    recorded separately as an exponent (polynomial terms) or a spline basis.
+    Instances are created with :func:`polyparse` or :meth:`from_columns`. The
+    materialised design is evaluated with the unobservable set to one, so
+    every column of :meth:`covariate_matrix` is the covariate part of a
+    term; the u-part is recorded separately as an exponent (polynomial
+    terms) or a spline basis.
 
     Attributes
     ----------
@@ -100,92 +106,6 @@ class MTRSpec:
     poly_names: tuple[str, ...]
     splines: tuple[SplineBlock, ...]
     _columns: tuple[str | None, ...] = ()
-
-    @classmethod
-    def from_formula(cls, formula: str, data: pd.DataFrame, uname: str = "u") -> MTRSpec:
-        """Parse an MTR formula against ``data``.
-
-        Parameters
-        ----------
-        formula : str
-            One-sided formula, e.g. ``"u + I(u**2) + x"``. The R spelling
-            ``I(u^2)`` is accepted. ``uSplines(degree, knots=[...],
-            intercept=False)`` adds a B-spline basis in ``u``.
-        data : pandas.DataFrame
-            Data used to encode covariates (factor levels, interactions).
-        uname : str, default "u"
-            Name of the unobservable variable in the formula.
-
-        Returns
-        -------
-        MTRSpec
-        """
-        rhs = _rewrite_caret(_strip_tilde(formula), uname)
-        mono_re, spline_re, mentions_re = _u_patterns(uname)
-        # Validate the u-terms before formulaic evaluates anything.
-        for term in cast(Iterable[Any], Formula(rhs)):
-            exprs = [f.expr for f in term.factors if mentions_re.search(f.expr)]
-            if len(exprs) > 1 or any(not mono_re.match(e) for e in exprs):
-                raise ValueError(_BAD_U_MESSAGE.format(u=uname, term=str(term)))
-        context = {"uSplines": _one, "c": _c}
-        frame = data.assign(**{uname: 1.0})
-        spec = ModelSpec.from_spec(rhs, context=context)
-        matrix = spec.get_model_matrix(frame, context=context)
-        spec = cast(ModelSpec, matrix.model_spec)
-
-        poly_columns: list[int] = []
-        exponents: list[int] = []
-        poly_names: list[str] = []
-        spline_specs: list[USpline] = []
-        spline_inter: list[list[tuple[int, str]]] = []
-        colnames = list(matrix.columns)
-        for term, indices in spec.term_indices.items():
-            u_factors = [
-                f.expr
-                for f in term.factors
-                if mentions_re.search(f.expr) or spline_re.match(f.expr)
-            ]
-            if len(u_factors) > 1:
-                raise ValueError(_BAD_U_MESSAGE.format(u=uname, term=str(term)))
-            sp: USpline | None = None
-            exponent: int | None = 0
-            if u_factors:
-                expr = u_factors[0]
-                m = mono_re.match(expr)
-                if m:
-                    exponent = int(m.group(1)) if m.group(1) is not None else 1
-                else:
-                    exponent = None
-                    sp = eval(  # noqa: S307 - the expression comes from the formula
-                        "USpline" + expr[len("uSplines") :], {"USpline": USpline, "c": _c}
-                    )
-            for col in indices:
-                name = colnames[col]
-                if exponent is not None:
-                    poly_columns.append(col)
-                    exponents.append(exponent)
-                    poly_names.append(name)
-                    continue
-                inter = ":".join(p for p in name.split(":") if not spline_re.match(p)) or "1"
-                assert sp is not None
-                if sp in spline_specs:
-                    spline_inter[spline_specs.index(sp)].append((col, inter))
-                else:
-                    spline_specs.append(sp)
-                    spline_inter.append([(col, inter)])
-        blocks = tuple(
-            SplineBlock(sp, tuple(c for c, _ in inter), tuple(n for _, n in inter))
-            for sp, inter in zip(spline_specs, spline_inter, strict=True)
-        )
-        return cls(
-            formula=formula,
-            uname=uname,
-            _spec=spec,
-            poly_columns=tuple(poly_columns),
-            exponents=tuple(exponents),
-            poly_names=tuple(poly_names),
-            splines=blocks,
-        )
 
     @classmethod
     def from_columns(
@@ -291,55 +211,6 @@ class MTRSpec:
         context = {"uSplines": _one, "c": _c}
         return np.asarray(self._spec.get_model_matrix(frame, context=context), dtype=float)
 
-    # -- integrals and evaluation -----------------------------------------
-
-    def gamma(
-        self,
-        data: pd.DataFrame,
-        lb: ArrayLike,
-        ub: ArrayLike,
-        weight: ArrayLike,
-        rows: ArrayLike | None = None,
-    ) -> NDArray[np.float64]:
-        """Per-observation integrals ``weight_i * int_{lb_i}^{ub_i} b_j(u) x_ij du``.
-
-        Parameters
-        ----------
-        data : pandas.DataFrame
-            Covariates, one row per observation.
-        lb, ub : array_like
-            Integration limits, scalars or one value per row.
-        weight : array_like
-            Multiplier, scalar or one value per row.
-        rows : array_like of bool, optional
-            Restrict the output to these rows.
-
-        Returns
-        -------
-        numpy.ndarray
-            Array of shape ``(n, n_coef)``. Averaging over rows gives the
-            ``gamma`` vectors of the moment conditions.
-        """
-        n = len(data)
-        lo = np.broadcast_to(np.asarray(lb, dtype=float), n)
-        hi = np.broadcast_to(np.asarray(ub, dtype=float), n)
-        w = np.broadcast_to(np.asarray(weight, dtype=float), n)
-        if rows is not None:
-            mask = np.asarray(rows, dtype=bool)
-            data, lo, hi, w = data.loc[mask], lo[mask], hi[mask], w[mask]
-        x = self.covariate_matrix(data)
-        parts = []
-        if self.poly_columns:
-            e = np.asarray(self.exponents, dtype=float)
-            mono = (hi[:, None] ** (e + 1) - lo[:, None] ** (e + 1)) / (e + 1)
-            parts.append(x[:, list(self.poly_columns)] * mono)
-        for block in self.splines:
-            integ = block.spline.integral(lo, hi)
-            for col in block.columns:
-                parts.append(x[:, [col]] * integ)
-        out = np.hstack(parts) if parts else np.empty((len(x), 0))
-        return np.asarray(out * w[:, None], dtype=float)
-
     def design(self, data: pd.DataFrame, u: ArrayLike) -> NDArray[np.float64]:
         """Evaluate the MTR basis at ``(u_i, x_i)`` for each row.
 
@@ -368,3 +239,152 @@ class MTRSpec:
                 parts.append(x[:, [col]] * basis)
         out = np.hstack(parts) if parts else np.empty((n, 0))
         return np.asarray(out, dtype=float)
+
+
+def polyparse(formula: str, data: pd.DataFrame, uname: str = "u") -> MTRSpec:
+    """Parse an MTR formula into polynomial and spline terms in the unobservable.
+
+    Parameters
+    ----------
+    formula : str
+        One-sided formula, e.g. ``"u + I(u**2) + x"``. The R spelling
+        ``I(u^2)`` is accepted. ``uSplines(degree, knots=[...],
+        intercept=False)`` adds a B-spline basis in ``u``.
+    data : pandas.DataFrame
+        Data used to encode covariates (factor levels, interactions).
+    uname : str, default "u"
+        Name of the unobservable variable in the formula.
+
+    Returns
+    -------
+    MTRSpec
+
+    Raises
+    ------
+    ValueError
+        When ``uname`` enters other than as a monomial or through
+        ``uSplines``, or the formula is two-sided.
+    """
+    rhs = _rewrite_caret(_strip_tilde(formula), uname)
+    mono_re, spline_re, mentions_re = _u_patterns(uname)
+    # Validate the u-terms before formulaic evaluates anything.
+    for term in cast(Iterable[Any], Formula(rhs)):
+        exprs = [f.expr for f in term.factors if mentions_re.search(f.expr)]
+        if len(exprs) > 1 or any(not mono_re.match(e) for e in exprs):
+            raise ValueError(_BAD_U_MESSAGE.format(u=uname, term=str(term)))
+    context = {"uSplines": _one, "c": _c}
+    frame = data.assign(**{uname: 1.0})
+    spec = ModelSpec.from_spec(rhs, context=context)
+    matrix = spec.get_model_matrix(frame, context=context)
+    spec = cast(ModelSpec, matrix.model_spec)
+
+    poly_columns: list[int] = []
+    exponents: list[int] = []
+    poly_names: list[str] = []
+    spline_specs: list[USpline] = []
+    spline_inter: list[list[tuple[int, str]]] = []
+    colnames = list(matrix.columns)
+    for term, indices in spec.term_indices.items():
+        u_factors = [
+            f.expr for f in term.factors if mentions_re.search(f.expr) or spline_re.match(f.expr)
+        ]
+        if len(u_factors) > 1:
+            raise ValueError(_BAD_U_MESSAGE.format(u=uname, term=str(term)))
+        sp: USpline | None = None
+        exponent: int | None = 0
+        if u_factors:
+            expr = u_factors[0]
+            m = mono_re.match(expr)
+            if m:
+                exponent = int(m.group(1)) if m.group(1) is not None else 1
+            else:
+                exponent = None
+                sp = eval(  # noqa: S307 - the expression comes from the formula
+                    "USpline" + expr[len("uSplines") :], {"USpline": USpline, "c": _c}
+                )
+        for col in indices:
+            name = colnames[col]
+            if exponent is not None:
+                poly_columns.append(col)
+                exponents.append(exponent)
+                poly_names.append(name)
+                continue
+            inter = ":".join(p for p in name.split(":") if not spline_re.match(p)) or "1"
+            assert sp is not None
+            if sp in spline_specs:
+                spline_inter[spline_specs.index(sp)].append((col, inter))
+            else:
+                spline_specs.append(sp)
+                spline_inter.append([(col, inter)])
+    blocks = tuple(
+        SplineBlock(sp, tuple(c for c, _ in inter), tuple(n for _, n in inter))
+        for sp, inter in zip(spline_specs, spline_inter, strict=True)
+    )
+    return MTRSpec(
+        formula=formula,
+        uname=uname,
+        _spec=spec,
+        poly_columns=tuple(poly_columns),
+        exponents=tuple(exponents),
+        poly_names=tuple(poly_names),
+        splines=blocks,
+    )
+
+
+def gen_gamma_splines(
+    block: SplineBlock, x: NDArray[np.float64], lb: NDArray[np.float64], ub: NDArray[np.float64]
+) -> NDArray[np.float64]:
+    """Integrals of one spline block: basis integrals times each interacted covariate column."""
+    integ = block.spline.integral(lb, ub)
+    return np.hstack([x[:, [col]] * integ for col in block.columns])
+
+
+def gen_gamma(
+    spec: MTRSpec,
+    data: pd.DataFrame,
+    lb: ArrayLike,
+    ub: ArrayLike,
+    multiplier: ArrayLike = 1.0,
+    rows: ArrayLike | None = None,
+    means: bool = True,
+) -> NDArray[np.float64]:
+    """Integrals ``multiplier_i * int_{lb_i}^{ub_i} b_j(u) x_ij du`` of the MTR terms.
+
+    Parameters
+    ----------
+    spec : MTRSpec
+        The MTR specification.
+    data : pandas.DataFrame
+        Covariates, one row per observation.
+    lb, ub : array_like
+        Integration limits, scalars or one value per row.
+    multiplier : array_like, default 1.0
+        Weight multiplying the integral, scalar or one value per row.
+    rows : array_like of bool, optional
+        Restrict the computation to these rows.
+    means : bool, default True
+        Average over rows (the ``gamma`` vector of a moment condition) or
+        return the per-observation integrals, shape ``(n, n_coef)``.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+    n = len(data)
+    lo = np.broadcast_to(np.asarray(lb, dtype=float), n)
+    hi = np.broadcast_to(np.asarray(ub, dtype=float), n)
+    w = np.broadcast_to(np.asarray(multiplier, dtype=float), n)
+    if rows is not None:
+        mask = np.asarray(rows, dtype=bool)
+        data, lo, hi, w = data.loc[mask], lo[mask], hi[mask], w[mask]
+    x = spec.covariate_matrix(data)
+    parts = []
+    if spec.poly_columns:
+        e = np.asarray(spec.exponents, dtype=float)
+        mono = (hi[:, None] ** (e + 1) - lo[:, None] ** (e + 1)) / (e + 1)
+        parts.append(x[:, list(spec.poly_columns)] * mono)
+    for block in spec.splines:
+        parts.append(gen_gamma_splines(block, x, lo, hi))
+    out = np.hstack(parts) if parts else np.empty((len(x), 0))
+    out = np.asarray(out * w[:, None], dtype=float)
+    return out.mean(axis=0) if means else out

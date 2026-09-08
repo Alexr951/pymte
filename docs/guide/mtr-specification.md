@@ -94,15 +94,16 @@ polynomial term, and the spline blocks.
 import pymte
 
 ae = pymte.load_ae()
-spec = pymte.MTRSpec.from_formula("~ u + I(u**2) + yob + u:yob", ae)
+spec = pymte.polyparse("~ u + I(u**2) + yob + u:yob", ae)
 spec.names, spec.exponents
 ```
 
-Its two numerical methods are the building blocks of everything else in the
-package. `design(data, u)` evaluates the basis at given $(u, x)$ points, so
-that `design @ theta` is the MTR; `gamma(data, lb, ub, weight)` returns, for
-each observation, the weighted integral of every basis function over
-$[lb_i, ub_i]$:
+Two numerical operations on it are the building blocks of everything else in
+the package. `spec.design(data, u)` evaluates the basis at given $(u, x)$
+points, so that `design @ theta` is the MTR; `pymte.gen_gamma(spec, data, lb,
+ub, multiplier)` returns the weighted integral of every basis function over
+$[lb_i, ub_i]$, averaged over the observations (or per observation with
+`means=False`):
 
 ```{code-cell} python
 import numpy as np
@@ -112,5 +113,5 @@ spec.design(rows, u=[0.1, 0.5, 0.9]).round(3)
 ```
 
 ```{code-cell} python
-spec.gamma(rows, lb=0.0, ub=0.5, weight=1.0).round(4)
+pymte.gen_gamma(spec, rows, lb=0.0, ub=0.5, means=False).round(4)
 ```

@@ -59,5 +59,5 @@ none. The R package uses the same scheme with an additional arm prefix
 import pymte
 
 ae = pymte.load_ae()
-pymte.MTRSpec.from_formula("~ uSplines(degree=2, knots=[.1, .3, .5, .7]) * yob", ae).names
+pymte.polyparse("~ uSplines(degree=2, knots=[.1, .3, .5, .7]) * yob", ae).names
 ```

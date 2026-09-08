@@ -35,7 +35,7 @@ from pymte.lp import (
     run_lp,
 )
 from pymte.monobound import Grids
-from pymte.mtr import MTRSpec
+from pymte.mtr import MTRSpec, gen_gamma, polyparse
 from pymte.point import GMMResult, gmm, least_squares
 from pymte.propensity import Propensity, fit_propensity, propensity_from_column
 from pymte.results import IVMTEResult
@@ -77,7 +77,9 @@ def _regression_design(
     with np.errstate(divide="ignore", invalid="ignore"):
         w0 = np.where(d == 0, 1.0 / (1.0 - p), 0.0)
         w1 = np.where(d == 1, 1.0 / p, 0.0)
-    return np.hstack([spec0.gamma(data, p, 1.0, w0), spec1.gamma(data, 0.0, p, w1)])
+    g0 = gen_gamma(spec0, data, p, 1.0, w0, means=False)
+    g1 = gen_gamma(spec1, data, 0.0, p, w1, means=False)
+    return np.hstack([g0, g1])
 
 
 @dataclass
@@ -120,7 +122,7 @@ def _spec(
     m: str | Sequence[tuple[int | USpline, str | None]], data: pd.DataFrame, uname: str
 ) -> MTRSpec:
     if isinstance(m, str):
-        return MTRSpec.from_formula(m, data, uname)
+        return polyparse(m, data, uname)
     return MTRSpec.from_columns(m, data, uname)
 
 
@@ -148,7 +150,7 @@ def _prepare(data: pd.DataFrame, o: SimpleNamespace) -> _Model:
         )  # fmt: skip
     equal = None
     if o.equal_coef is not None:
-        eq_spec = MTRSpec.from_formula(o.equal_coef, data, o.uname)
+        eq_spec = polyparse(o.equal_coef, data, o.uname)
         equal = lp_setup_equal_coef(spec0, spec1, eq_spec.names)
     names = tuple(f"[m0]{v}" for v in spec0.names) + tuple(f"[m1]{v}" for v in spec1.names)
     outcome = o.outcome if o.outcome is not None else o.ivlike[0].split("~")[0].strip()

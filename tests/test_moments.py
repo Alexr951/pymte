@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pymte import MTRSpec, fit_propensity, load_ae, load_sim_data
+from pymte import fit_propensity, load_ae, load_sim_data
 from pymte.ivlike import build_moments, fit_ivlike
+from pymte.mtr import polyparse
 from pymte.weights import conventional_weights, custom_target_gammas, target_gammas_from_weights
 
 
@@ -134,8 +135,8 @@ def test_target_and_ivlike_moments_match_r(oracle, datasets, case):
     data_key, m0, m1, ivlike, pform, tkw, comps, subs = CASES[case]
     data = datasets[data_key]
     prop = fit_propensity(data, pform)
-    spec0 = MTRSpec.from_formula(m0, data)
-    spec1 = MTRSpec.from_formula(m1, data)
+    spec0 = polyparse(m0, data)
+    spec1 = polyparse(m1, data)
     target = target_gammas_from_weights(
         spec0, spec1, data, conventional_weights(data=data, prop=prop, **tkw)
     )
@@ -157,7 +158,7 @@ def test_target_and_ivlike_moments_match_r(oracle, datasets, case):
 def test_custom_weights_replicate_conditional_late(oracle, datasets):
     sim = datasets["sim"]
     prop = fit_propensity(sim, "d ~ z + x")
-    spec = MTRSpec.from_formula(CUBIC, sim)
+    spec = polyparse(CUBIC, sim)
     px = (sim["x"] == 2).mean()
 
     def p_at(x, z):
