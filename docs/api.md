@@ -29,7 +29,7 @@ restrictions and `audit` the audit procedure.
    polyparse
    MTRSpec
    USpline
-   propensity
+   propensity.propensity
    Propensity
    design
    load_ae
