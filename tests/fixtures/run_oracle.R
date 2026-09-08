@@ -394,6 +394,11 @@ run_case("sim_late_boot50_m2000_subsample", list(
 ## passed so that the Python tests can use exactly the same grid points.
 ## ---------------------------------------------------------------------------
 
+dtb <- ivmte:::gendistBasic()
+write.csv(dtb$data.full, file.path(outdir, "dist_basic_full.csv"), row.names = FALSE)
+write.csv(dtb$data.dist, file.path(outdir, "dist_basic_dist.csv"), row.names = FALSE)
+write.csv(ivmte:::gendistMosquito(), file.path(outdir, "dist_mosquito.csv"), row.names = FALSE)
+
 dtcf <- ivmte:::gendistCovariates()$data.full
 dtc <- ivmte:::gendistCovariates()$data.dist
 write.csv(dtcf, file.path(outdir, "dist_covariates_full.csv"), row.names = FALSE)
