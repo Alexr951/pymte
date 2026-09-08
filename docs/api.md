@@ -1,5 +1,10 @@
 # API reference
 
+The modules and functions follow the R package: `mst` holds the estimator,
+`mtr` the MTR specifications, `wweights` and `sweights` the target and
+IV-like weights, `lp` the optimisation problems, `monobound` the shape
+restrictions and `audit` the audit procedure.
+
 ## Estimation
 
 ```{eval-rst}
@@ -11,6 +16,7 @@
 
    ivmte
    IVMTEResult
+   ivmte_estimate
 ```
 
 ## Specifications and inputs
@@ -20,10 +26,12 @@
    :toctree: generated
    :nosignatures:
 
+   polyparse
    MTRSpec
    USpline
+   propensity
    Propensity
-   fit_propensity
+   design
    load_ae
    load_sim_data
 ```
@@ -43,7 +51,7 @@
 ## Building blocks
 
 The estimator is assembled from the following functions, which can be used
-on their own.
+on their own. The names are those of the R package in snake case.
 
 ```{eval-rst}
 .. currentmodule:: pymte
@@ -52,26 +60,59 @@ on their own.
    :toctree: generated
    :nosignatures:
 
-   weights.conventional_weights
-   weights.custom_target_gammas
-   weights.target_gammas_from_weights
-   ivlike.fit_ivlike
-   ivlike.build_moments
-   shape.build_grids
-   shape.shape_constraints
-   shape.halton
-   lp.L1Criterion
-   lp.LSCriterion
-   lp.build_constraints
-   lp.solve_criterion
-   lp.solve_bound
-   audit.run_audit
+   mtr.gen_gamma
+   mtr.gen_gamma_splines
+   mst.gen_target
+   mst.gen_s_set
+   mst.gmm_estimate
+   mst.moment_matrix
+   mst.bound_ci
+   mst.bound_pvalue
+   wweights.wate1
+   wweights.watt1
+   wweights.watu1
+   wweights.wlate1
+   wweights.wgenlate1
+   wweights.gen_weight
+   ivlike.iv_estimate
+   ivlike.piv
+   sweights.olsj
+   sweights.tsls
+   monobound.gengrid
+   monobound.genbound_a
+   monobound.genmono_a
+   monobound.combinemonobound
+   monobound.genmonobound_a
+   audit.audit
    audit.AuditResult
-   point.gmm
-   point.least_squares
-   bootstrap.bound_ci
-   bootstrap.bound_pvalue
-   bootstrap.point_ci
-   solvers.solve_lp
-   solvers.solve_qcqp
+   audit.select_violations
+   audit.rhalton
+   lp.lp_setup
+   lp.lp_setup_equal_coef
+   lp.lp_setup_criterion
+   lp.lp_setup_bound
+   lp.lp_setup_criterion_boot
+   lp.criterion_min
+   lp.bound
+   lp.qp_setup
+   lp.qp_setup_criterion
+   lp.qp_setup_bound
+   lp.run_lp
+   lp.run_qcqp
+```
+
+## Test data
+
+The synthetic populations of the R package's test suite, for experiments
+and for the tests in `tests/`.
+
+```{eval-rst}
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   testdata.gendist_basic
+   testdata.gendist_covariates
+   testdata.gendist_splines
+   testdata.gendist_mosquito
 ```

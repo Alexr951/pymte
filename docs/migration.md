@@ -75,6 +75,31 @@ and the CPLEX backend.
 Coefficient names carry the `[m0]`/`[m1]` prefixes of the R package.
 Spline coefficients are named `uS{j}.{b}:{interaction}` (R: `u0S{j}.{b}`).
 
+## Modules and functions
+
+The package follows the file layout of the R package, with function names
+in snake case. Internal helpers that only exist because of R (`l()`,
+`modcall`, the `lists.R` and `callcheck.R` argument parsers, the solver
+option translators) have no counterpart.
+
+| R file | Python module | R function | Python |
+|---|---|---|---|
+| `mst.R` | `pymte.mst` | `ivmte`, `ivmteEstimate`, `genTarget`, `genSSet`, `gmmEstimate`, `momentMatrix`, `boundCI`, `boundPvalue`, `print`/`summary` | `ivmte`, `ivmte_estimate`, `gen_target`, `gen_s_set`, `gmm_estimate`, `moment_matrix`, `bound_ci`, `bound_pvalue`, `IVMTEResult.summary()` |
+| `mtr.R` | `pymte.mtr` | `polyparse`, `genGamma`, `genGammaSplines` | `polyparse`, `gen_gamma`, `gen_gamma_splines` (the parsed formula is an `MTRSpec`) |
+| `splines.R` | `pymte.splines` | `splinesBasis` and `splines2` calls | `USpline.basis()`, `USpline.integral()` |
+| `wweights.R` | `pymte.wweights` | `wate1`, `watt1`, `watu1`, `wlate1`, `wgenlate1`, `genWeight` | same names, `gen_weight` |
+| `sweights.R` | `pymte.sweights` | `olsj`, `tsls` | `olsj`, `tsls` |
+| `ivlike.R` | `pymte.ivlike` | `ivEstimate`, `piv` | `iv_estimate`, `piv` |
+| `design.R` | `pymte.design` | `design` | `design` |
+| `propensity.R` | `pymte.propensity` | `propensity` | `propensity` |
+| `lp.R` | `pymte.lp` | `lpSetup`, `lpSetupEqualCoef`, `lpSetupCriterion`, `lpSetupBound`, `lpSetupCriterionBoot`, `criterionMin`, `bound`, `qpSetup`, `qpSetupCriterion`, `qpSetupBound`, `runGurobi`, `runMosek`, `runLpSolveAPI` | `lp_setup`, `lp_setup_equal_coef`, `lp_setup_criterion`, `lp_setup_bound`, `lp_setup_criterion_boot`, `criterion_min`, `bound`, `qp_setup`, `qp_setup_criterion`, `qp_setup_bound`, `run_highs`, `run_cvxpy` (through `run_lp` and `run_qcqp`) |
+| `monobound.R` | `pymte.monobound` | `gengrid`, `genboundA`, `genmonoA`, `combinemonobound`, `genmonoboundA` | `gengrid`, `genbound_a`, `genmono_a`, `combinemonobound`, `genmonobound_a` |
+| `audit.R` | `pymte.audit` | `audit`, `selectViolations`, `rhalton`, `statusString` | `audit`, `select_violations`, `rhalton`, `status_string` |
+| `testdata.R` | `pymte.testdata` | `gendistBasic`, `gendistCovariates`, `gendistSplines`, `gendistMosquito` | `gendist_basic`, `gendist_covariates`, `gendist_splines`, `gendist_mosquito` |
+| `testfunctions_covariates.R`, `testfunctions_splines.R` | `pymte.testfunctions_covariates`, `pymte.testfunctions_splines` | `popmean`, `symat`, `mInt`, `genGammaTT`, `sOls1d`, ..., `splineInt`, `genGammaSplinesTT` | `popmean`, `symat`, `m_int`, `gen_gamma_tt`, `s_ols1d`, ..., `spline_int`, `gen_gamma_splines_tt` (coefficient positions are 0-based) |
+| `data.R` | `pymte.datasets` | `AE`, `ivmteSimData` | `load_ae()`, `load_sim_data()` |
+| `tests/testthat/test_single.R`, `test_covariates.R`, `test_splines.R`, `test_direct_qp.R` | `tests/test_single.py`, `test_covariates.py`, `test_splines.py`, `test_direct_qp.py` | | the same hand-built checks, plus comparisons with the R results |
+
 ## Behavioural differences
 
 - **LATE.** R redefined `late` in July 2022; the R vignette's LATE numbers
@@ -88,5 +113,7 @@ Spline coefficients are named `uS{j}.{b}:{interaction}` (R: `u0S{j}.{b}`).
   the solver returns and can differ between solvers; the bounds agree.
 - **Regression approach.** Point identified regressions run without a
   commercial solver. The quadratically constrained bounds use Clarabel.
+- **Bootstrap grids.** Replicates reuse both the audit grid and the
+  initial constraint grid of the sample; R re-samples the initial grid.
 - **Spline intercept.** As in the current R source (and unlike CRAN 1.4.0),
   `uSplines` drops the first basis function unless `intercept=True`.
