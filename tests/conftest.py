@@ -55,3 +55,15 @@ def hand_bounds(gamma, beta, rows, gstar, criterion_tol):
 @pytest.fixture(scope="session")
 def hand_lp():
     return hand_bounds
+
+
+def grid_designs(result):
+    """MTR bases on the full audit grid and their differences in consecutive ``u``."""
+    grids = result.audit.grids
+    spec0, spec1 = result.specs
+    nx, nu = len(grids.support), len(grids.audit_u)
+    grid_x = grids.support.iloc[np.repeat(np.arange(nx), nu)].reset_index(drop=True)
+    grid_u = np.tile(grids.audit_u, nx)
+    mono0, mono1 = spec0.design(grid_x, grid_u), spec1.design(grid_x, grid_u)
+    hi = np.array([c * nu + k for c in range(nx) for k in range(1, nu)])
+    return mono0, mono1, mono0[hi] - mono0[hi - 1], mono1[hi] - mono1[hi - 1]

@@ -7,6 +7,7 @@ of :func:`pymte.testdata.gendist_covariates` and compared with the estimator.
 
 import numpy as np
 import pytest
+from conftest import grid_designs
 
 import pymte
 from pymte.testdata import gendist_covariates
@@ -101,12 +102,7 @@ def test_gamma_moments(result, hand):
 def test_lp_problem(result, hand, hand_lp, pop, oracle):
     gamma = np.array([np.concatenate(g) for g in hand["g_ols"]])
     beta = hand["ols"][1:3]
-    grids = result.audit.grids
-    spec0, spec1 = result.specs
-    grid_x = grids.support.iloc[np.repeat(np.arange(len(grids.support)), len(grids.audit_u))]
-    grid_u = np.tile(grids.audit_u, len(grids.support))
-    mono0 = spec0.design(grid_x.reset_index(drop=True), grid_u)
-    mono1 = spec1.design(grid_x.reset_index(drop=True), grid_u)
+    mono0, mono1, _, _ = grid_designs(result)
     y = pop["data_full"]["ey"]
     miny, maxy = float(y.min()), float(y.max())
     z0, z1 = np.zeros_like(mono0), np.zeros_like(mono1)

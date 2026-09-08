@@ -9,6 +9,7 @@ rebuilt from the population distribution of
 
 import numpy as np
 import pytest
+from conftest import grid_designs
 
 import pymte
 from pymte.testdata import gendist_splines
@@ -124,15 +125,7 @@ def test_gamma_moments(result, hand):
 
 def test_lp_problem(result, hand, hand_lp, pop, oracle):
     gamma = np.array([np.concatenate(g) for g in hand["gammas"]])
-    grids = result.audit.grids
-    spec0, spec1 = result.specs
-    nx, nu = len(grids.support), len(grids.audit_u)
-    grid_x = grids.support.iloc[np.repeat(np.arange(nx), nu)].reset_index(drop=True)
-    grid_u = np.tile(grids.audit_u, nx)
-    amono0 = spec0.design(grid_x, grid_u)
-    amono1 = spec1.design(grid_x, grid_u)
-    hi = np.array([c * nu + k for c in range(nx) for k in range(1, nu)])
-    d0, d1 = amono0[hi] - amono0[hi - 1], amono1[hi] - amono1[hi - 1]
+    amono0, amono1, d0, d1 = grid_designs(result)
     dts = pop["data_dist"]
     maxy = float(max(dts["ey0"].max(), dts["ey1"].max()))
     miny = float(min(dts["ey0"].min(), dts["ey1"].min()))

@@ -8,6 +8,7 @@ monotonicity restrictions are rebuilt from the population distribution of
 
 import numpy as np
 import pytest
+from conftest import grid_designs
 
 import pymte
 from pymte.testdata import gendist_covariates
@@ -157,15 +158,7 @@ def test_gamma_moments(result, hand):
 
 def test_lp_problem(result, hand, hand_lp, pop, oracle):
     gamma = np.array([np.concatenate(g) for g in hand["gammas"]])
-    grids = result.audit.grids
-    spec0, spec1 = result.specs
-    nx, nu = len(grids.support), len(grids.audit_u)
-    grid_x = grids.support.iloc[np.repeat(np.arange(nx), nu)].reset_index(drop=True)
-    grid_u = np.tile(grids.audit_u, nx)
-    mono0 = spec0.design(grid_x, grid_u)
-    mono1 = spec1.design(grid_x, grid_u)
-    hi = np.array([c * nu + k for c in range(nx) for k in range(1, nu)])
-    d0, d1 = mono0[hi] - mono0[hi - 1], mono1[hi] - mono1[hi - 1]
+    mono0, mono1, d0, d1 = grid_designs(result)
     y = pop["data_full"]["ey"]
     miny, maxy = float(y.min()), float(y.max())
     z0, z1 = np.zeros_like(mono0), np.zeros_like(mono1)
