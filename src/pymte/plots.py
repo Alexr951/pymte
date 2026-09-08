@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from pymte.results import IVMTEResult
+from pymte.mst import IVMTEResult
 
 
 def _plt() -> Any:

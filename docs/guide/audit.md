@@ -31,9 +31,9 @@ deterministic. Otherwise pass `seed` for reproducibility, or pass the grids
 explicitly with `initgrid_x`, `initgrid_u`, `audit_x`, `audit_u`.
 
 ```{code-cell} python
-from pymte.shape import u_grid
+from pymte.audit import rhalton
 
-u_grid(5)
+rhalton(5)
 ```
 
 ## Tuning

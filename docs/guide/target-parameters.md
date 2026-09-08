@@ -72,7 +72,7 @@ names. The following replicates the conditional LATE above by hand:
 ```{code-cell} python
 import pandas as pd
 
-prop = pymte.fit_propensity(sim, "d ~ z + x")
+prop = pymte.propensity("d ~ z + x", sim)
 px = (sim["x"] == 2).mean()
 
 def p_at(x, z):

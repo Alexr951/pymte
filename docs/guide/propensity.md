@@ -29,7 +29,7 @@ with several values can be entered as factors, `"d ~ C(z) + x"`.
 import pymte
 
 ae = pymte.load_ae()
-prop = pymte.fit_propensity(ae, "morekids ~ samesex + yob")
+prop = pymte.propensity("morekids ~ samesex + yob", ae)
 dict(zip(prop.names, prop.params.round(5)))
 ```
 

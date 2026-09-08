@@ -151,7 +151,7 @@ def test_published_bounds(oracle, ae, sim, case):
 
 
 def test_custom_weights_replicate_conditional_late(sim):
-    prop = pymte.fit_propensity(sim, "d ~ z + x")
+    prop = pymte.propensity("d ~ z + x", sim)
     px = (sim["x"] == 2).mean()
 
     def p_at(x, z):

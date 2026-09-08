@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import pymte
-from pymte.bootstrap import bound_ci, bound_pvalue, coef_ci, point_ci, point_pvalues
+from pymte.mst import _coef_ci, _point_ci, _point_pvalues, bound_ci, bound_pvalue
 
 LEVELS = [0.9, 0.95, 0.99]
 
@@ -47,12 +47,12 @@ def test_point_intervals_match_r_formulas(oracle, case):
     ref = oracle(case)
     draws = np.asarray(ref["point_estimate_bootstraps"], dtype=float)
     est = ref["point_estimate"]
-    ci = point_ci(est, draws, LEVELS)
+    ci = _point_ci(est, draws, LEVELS)
     for kind in ("nonparametric", "normal"):
         np.testing.assert_allclose(
             ci[kind].to_numpy(), _matrix(ref["point_estimate_ci"][kind]), atol=1e-10
         )
-    p = point_pvalues(est, draws)
+    p = _point_pvalues(est, draws)
     assert p["nonparametric"] == pytest.approx(ref["p_value"]["nonparametric"])
     assert p["parametric"] == pytest.approx(ref["p_value"]["parametric"], abs=1e-10)
     assert np.std(draws, ddof=1) == pytest.approx(ref["point_estimate_se"], abs=1e-12)
@@ -65,7 +65,7 @@ def test_point_intervals_match_r_formulas(oracle, case):
 def test_coef_ci_shape():
     rng = np.random.default_rng(0)
     draws = rng.normal(size=(40, 3))
-    ci = coef_ci(np.zeros(3), draws, ["a", "b", "c"], LEVELS)
+    ci = _coef_ci(np.zeros(3), draws, ["a", "b", "c"], LEVELS)
     assert ci["normal"].shape == (3, 6) and list(ci["nonparametric"].index) == ["a", "b", "c"]
     assert (ci["normal"]["0.99 lower"] < ci["normal"]["0.9 lower"]).all()
 

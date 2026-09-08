@@ -6,10 +6,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pymte import fit_propensity, load_ae, load_sim_data
-from pymte.ivlike import build_moments, fit_ivlike
+from pymte import load_ae, load_sim_data
+from pymte.ivlike import iv_estimate
+from pymte.mst import gen_s_set, gen_target
 from pymte.mtr import polyparse
-from pymte.weights import conventional_weights, custom_target_gammas, target_gammas_from_weights
+from pymte.propensity import propensity
 
 
 def r_name(name: str) -> str:
@@ -134,13 +135,11 @@ def datasets():
 def test_target_and_ivlike_moments_match_r(oracle, datasets, case):
     data_key, m0, m1, ivlike, pform, tkw, comps, subs = CASES[case]
     data = datasets[data_key]
-    prop = fit_propensity(data, pform)
+    prop = propensity(pform, data)
     spec0 = polyparse(m0, data)
     spec1 = polyparse(m1, data)
-    target = target_gammas_from_weights(
-        spec0, spec1, data, conventional_weights(data=data, prop=prop, **tkw)
-    )
-    moments = build_moments(data, ivlike, spec0, spec1, prop, components=comps, subsets=subs)
+    target = gen_target(spec0, spec1, data, prop, **tkw)
+    moments = gen_s_set(data, ivlike, spec0, spec1, prop, components=comps, subsets=subs)
 
     ref = oracle(case)
     assert_named_close(spec0.names, target.gstar0, ref["gstar"]["g0"], atol=1e-7)
@@ -157,7 +156,7 @@ def test_target_and_ivlike_moments_match_r(oracle, datasets, case):
 
 def test_custom_weights_replicate_conditional_late(oracle, datasets):
     sim = datasets["sim"]
-    prop = fit_propensity(sim, "d ~ z + x")
+    prop = propensity("d ~ z + x", sim)
     spec = polyparse(CUBIC, sim)
     px = (sim["x"] == 2).mean()
 
@@ -176,10 +175,11 @@ def test_custom_weights_replicate_conditional_late(oracle, datasets):
     def knot2(x):
         return p_at(x, 3)
 
-    custom = custom_target_gammas(
+    custom = gen_target(
         spec,
         spec,
         sim,
+        prop,
         target_weight0=[0, weight0, 0],
         target_weight1=[0, weight1, 0],
         target_knots0=[knot1, knot2],
@@ -188,13 +188,8 @@ def test_custom_weights_replicate_conditional_late(oracle, datasets):
     ref = oracle("sim_custom_weights_late_x2")
     assert_named_close(spec.names, custom.gstar0, ref["gstar"]["g0"], atol=1e-7)
     assert_named_close(spec.names, custom.gstar1, ref["gstar"]["g1"], atol=1e-7)
-    late = target_gammas_from_weights(
-        spec,
-        spec,
-        sim,
-        conventional_weights(
-            "late", sim, prop, late_from={"z": 1}, late_to={"z": 3}, late_x={"x": 2}
-        ),
+    late = gen_target(
+        spec, spec, sim, prop, "late", late_from={"z": 1}, late_to={"z": 3}, late_x={"x": 2}
     )
     np.testing.assert_allclose(custom.gstar0, late.gstar0, atol=1e-10)
     np.testing.assert_allclose(custom.gstar1, late.gstar1, atol=1e-10)
@@ -202,18 +197,18 @@ def test_custom_weights_replicate_conditional_late(oracle, datasets):
 
 def test_ols_coefficients_equal_weighted_outcome_means(datasets):
     sim = datasets["sim"]
-    fit = fit_ivlike(sim, "y ~ d + x", treat="d")
+    fit = iv_estimate("y ~ d + x", sim, treat="d")
     s_actual = np.where(fit.d[:, None] == 1, fit.s1, fit.s0)
     np.testing.assert_allclose((s_actual * fit.y[:, None]).mean(axis=0), fit.beta, atol=1e-12)
 
 
 def test_components_and_errors(datasets):
     sim = datasets["sim"]
-    fit = fit_ivlike(sim, "y ~ d + x", treat="d", components=["intercept", "d"])
+    fit = iv_estimate("y ~ d + x", sim, treat="d", components=["intercept", "d"])
     assert fit.components == ("Intercept", "d")
     with pytest.raises(ValueError, match="not a coefficient"):
-        fit_ivlike(sim, "y ~ d + x", treat="d", components=["w"])
+        iv_estimate("y ~ d + x", sim, treat="d", components=["w"])
     with pytest.raises(ValueError, match="collinear"):
-        fit_ivlike(sim.assign(x2=sim["x"]), "y ~ d + x + x2", treat="d")
+        iv_estimate("y ~ d + x + x2", sim.assign(x2=sim["x"]), treat="d")
     with pytest.raises(ValueError, match="selects no observations"):
-        fit_ivlike(sim, "y ~ d", treat="d", subset="x > 100")
+        iv_estimate("y ~ d", sim, treat="d", subset="x > 100")
