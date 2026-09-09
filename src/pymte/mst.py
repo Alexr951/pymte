@@ -1218,7 +1218,8 @@ def ivmte(
         the estimation sample of that regression, or ``None``.
     propensity : str
         Two-sided formula ``"d ~ z + x"`` fitted with ``link``, or the name of
-        a column holding propensity scores (then ``treat`` is required).
+        a column holding propensity scores, optionally written ``"~ p"``
+        (then ``treat`` is required).
     link : {"logit", "probit", "linear"}, default "logit"
         Propensity model.
     treat : str, optional
@@ -1298,6 +1299,9 @@ def ivmte(
         raise ValueError("ci_type must be 'backward' or 'forward'")
     if bootstraps == 1:
         raise ValueError("'bootstraps' must be 0 or at least 2")
+    if propensity.strip().startswith("~"):
+        # R accepts a one-sided formula naming the propensity score column.
+        propensity = options["propensity"] = propensity.strip()[1:].strip()
     is_formula = "~" in propensity
     if not is_formula and treat is None:
         raise ValueError("'treat' is required when 'propensity' names a column of scores")

@@ -25,6 +25,8 @@ All notable changes to this project are documented here. The format follows
   and `late_to` must be in the propensity model. As in R, a warning names
   the IV-like specifications without the treatment variable when moments
   turn out to be dependent.
+- `propensity="~ p"` names a score column, and `uSpline(...)` is accepted
+  as a spelling of `uSplines(...)`, both as in R.
 
 ### Added
 

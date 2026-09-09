@@ -46,7 +46,7 @@ def _c(*args: float) -> list[float]:
 def _u_patterns(uname: str) -> tuple[re.Pattern[str], re.Pattern[str], re.Pattern[str]]:
     u = re.escape(uname)
     mono = re.compile(rf"^(?:{u}|I\(\s*{u}\s*(?:\*\*|\^)\s*(\d+)\s*\))$")
-    spline = re.compile(r"^uSplines\((.*)\)$", re.DOTALL)
+    spline = re.compile(r"^uSplines?\((.*)\)$", re.DOTALL)
     mentions = re.compile(rf"(?<![\w.]){u}(?![\w.])")
     return mono, spline, mentions
 
@@ -208,7 +208,7 @@ class MTRSpec:
             ]
             return np.column_stack(cols) if cols else np.empty((len(data), 0))
         frame = data.assign(**{self.uname: 1.0})
-        context = {"uSplines": _one, "c": _c}
+        context = {"uSplines": _one, "uSpline": _one, "c": _c}
         return np.asarray(self._spec.get_model_matrix(frame, context=context), dtype=float)
 
     def design(self, data: pd.DataFrame, u: ArrayLike) -> NDArray[np.float64]:
@@ -249,7 +249,7 @@ def polyparse(formula: str, data: pd.DataFrame, uname: str = "u") -> MTRSpec:
     formula : str
         One-sided formula, e.g. ``"u + I(u**2) + x"``. The R spelling
         ``I(u^2)`` is accepted. ``uSplines(degree, knots=[...],
-        intercept=False)`` adds a B-spline basis in ``u``.
+        intercept=False)`` (or ``uSpline``, as in R) adds a B-spline basis in ``u``.
     data : pandas.DataFrame
         Data used to encode covariates (factor levels, interactions).
     uname : str, default "u"
@@ -272,7 +272,7 @@ def polyparse(formula: str, data: pd.DataFrame, uname: str = "u") -> MTRSpec:
         exprs = [f.expr for f in term.factors if mentions_re.search(f.expr)]
         if len(exprs) > 1 or any(not mono_re.match(e) for e in exprs):
             raise ValueError(_BAD_U_MESSAGE.format(u=uname, term=str(term)))
-    context = {"uSplines": _one, "c": _c}
+    context = {"uSplines": _one, "uSpline": _one, "c": _c}
     frame = data.assign(**{uname: 1.0})
     spec = ModelSpec.from_spec(rhs, context=context)
     matrix = spec.get_model_matrix(frame, context=context)
@@ -300,7 +300,7 @@ def polyparse(formula: str, data: pd.DataFrame, uname: str = "u") -> MTRSpec:
             else:
                 exponent = None
                 sp = eval(  # noqa: S307 - the expression comes from the formula
-                    "USpline" + expr[len("uSplines") :], {"USpline": USpline, "c": _c}
+                    "USpline" + expr[expr.index("(") :], {"USpline": USpline, "c": _c}
                 )
         for col in indices:
             name = colnames[col]

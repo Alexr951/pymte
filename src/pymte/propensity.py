@@ -86,7 +86,8 @@ def propensity(
     ----------
     formula : str
         Two-sided formula, e.g. ``"d ~ z + x"``, or the name of a column
-        holding propensity scores in [0, 1] (then ``treat`` is required).
+        holding propensity scores in [0, 1], optionally written ``"~ p"``
+        (then ``treat`` is required).
     data : pandas.DataFrame
         Estimation sample.
     link : {"logit", "probit", "linear"}, default "logit"
@@ -99,6 +100,8 @@ def propensity(
     -------
     Propensity
     """
+    if formula.strip().startswith("~"):
+        formula = formula.strip()[1:].strip()
     if "~" not in formula:
         if treat is None:
             raise ValueError("'treat' is required when 'propensity' names a column of scores")

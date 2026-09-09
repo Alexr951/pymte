@@ -59,3 +59,17 @@ def test_summary_reports_an_unfinished_audit():
         )  # fmt: skip
     assert "Audit reached audit_max (1)" in r.summary()
     assert "successfully" not in r.summary()
+
+
+def test_propensity_column_as_one_sided_formula(sim):
+    p = pymte.propensity("d ~ z", sim)
+    df = sim.assign(p=p.phat)
+    a = pymte.ivmte(df, **{**SIM, "propensity": "p"}, treat="d", seed=0)
+    b = pymte.ivmte(df, **{**SIM, "propensity": "~ p"}, treat="d", seed=0)
+    assert a.bounds == b.bounds
+
+
+def test_usplines_singular_alias(sim):
+    a = pymte.polyparse("~ uSplines(degree=1, knots=[.5]) + x", sim)
+    b = pymte.polyparse("~ uSpline(degree = 1, knots = c(.5)) + x", sim)
+    assert a.names == b.names and a.splines[0].spline == b.splines[0].spline
