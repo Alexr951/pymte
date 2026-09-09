@@ -17,6 +17,14 @@ All notable changes to this project are documented here. The format follows
   package exports the same functions as the R namespace.
 - A collinear regression with `point=True` falls through to the bounds, as
   in R, instead of raising.
+- The summary reports `Audit reached audit_max (N)` when the audit stopped
+  with violations left, as R does, instead of claiming success.
+- The argument checks of the R package are enforced: IV-like formulas must
+  share one outcome, the treatment variable cannot enter `m0`/`m1`, `treat`
+  must agree with the propensity formula, and the variables of `late_from`
+  and `late_to` must be in the propensity model. As in R, a warning names
+  the IV-like specifications without the treatment variable when moments
+  turn out to be dependent.
 
 ### Added
 

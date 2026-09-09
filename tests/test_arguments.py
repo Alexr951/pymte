@@ -12,6 +12,40 @@ def sim():
     return pymte.load_sim_data()
 
 
+def test_ivlike_formulas_must_share_the_outcome(sim):
+    with pytest.raises(ValueError, match="Multiple response variables"):
+        pymte.ivmte(sim, **{**SIM, "ivlike": ["y ~ d + z", "d ~ z"]})
+
+
+def test_treatment_cannot_enter_the_mtrs(sim):
+    with pytest.raises(ValueError, match="Treatment variable cannot be included in the MTRs"):
+        pymte.ivmte(sim, **{**SIM, "m0": "~ u + d"})
+
+
+def test_treat_must_match_the_propensity_formula(sim):
+    with pytest.raises(ValueError, match="'treat' .* differs"):
+        pymte.ivmte(sim, treat="z", **SIM)
+    r = pymte.ivmte(sim, treat="d", **SIM)
+    assert r.propensity.treat == "d"
+
+
+def test_late_variables_must_be_in_the_propensity_model(sim):
+    with pytest.raises(ValueError, match="must be included in the propensity score model"):
+        pymte.ivmte(
+            sim, target="late", late_from={"x": 1}, late_to={"x": 3}, m0="~ u", m1="~ u",
+            ivlike="y ~ d + z", propensity="d ~ z",
+        )  # fmt: skip
+
+
+def test_warns_when_a_specification_without_treatment_loses_moments(sim):
+    with pytest.warns(UserWarning, match="do not include the treatment variable: 1"):
+        r = pymte.ivmte(
+            sim, target="ate", m0="~ u + x", m1="~ u + x", ivlike=["y ~ z + x", "y ~ d | z"],
+            propensity="d ~ z + x", seed=0,
+        )  # fmt: skip
+    assert r.moments < r.ivlike.n_moments
+
+
 def test_summary_reports_an_unfinished_audit():
     ae = pymte.load_ae()
     with pytest.warns(UserWarning, match="audit_max"):

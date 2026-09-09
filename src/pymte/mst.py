@@ -25,7 +25,7 @@ from numpy.typing import NDArray
 from scipy.stats import chi2, norm
 
 from pymte.audit import AuditError, AuditResult, audit, fmt_result
-from pymte.callcheck import required_columns
+from pymte.callcheck import formula_vars, get_xz, required_columns
 from pymte.ivlike import IVLikeFit, MomentSet, iv_estimate
 from pymte.lp import (
     Criterion,
@@ -963,6 +963,18 @@ def ivmte_estimate(
         method = "lp"
         if not boot:
             log.append("Generating IV-like moments...")
+            lacking = [
+                str(i + 1)
+                for i, f in enumerate(o.ivlike)
+                if o.treat not in formula_vars(get_xz(f)[1])
+            ]
+            if lacking and model.moments.n_independent < model.moments.n_moments:
+                warnings.warn(
+                    "The following IV-like specifications do not include the treatment "
+                    f"variable: {', '.join(lacking)}. This may result in fewer independent "
+                    "moment conditions than expected.",
+                    stacklevel=3,
+                )
             n_coef = model.spec0.n_coef + model.spec1.n_coef
             if point is None:
                 point = model.moments.n_independent >= n_coef
@@ -1289,7 +1301,30 @@ def ivmte(
     is_formula = "~" in propensity
     if not is_formula and treat is None:
         raise ValueError("'treat' is required when 'propensity' names a column of scores")
+    if is_formula:
+        ptreat = propensity.partition("~")[0].strip()
+        if treat is not None and treat != ptreat:
+            raise ValueError(
+                f"'treat' ({treat!r}) differs from the dependent variable of the propensity "
+                f"score formula ({ptreat!r})"
+            )
+        treat = ptreat
+        if target is not None and target.lower() in ("late", "avglate"):
+            late_vars = set(late_from or {}) | set(late_to or {})
+            if not late_vars <= formula_vars(propensity):
+                raise ValueError(
+                    "All variables in 'late_to' and 'late_from' must be included in the "
+                    "propensity score model"
+                )
+    if len({get_xz(f)[0] for f in ivlike_list}) > 1:
+        raise ValueError("Multiple response variables specified in the IV-like specifications")
+    mtr_vars: set[str] = set()
+    for m in (m0, m1):
+        mtr_vars |= formula_vars(m) if isinstance(m, str) else {c for _, c in m if c}
+    if treat in mtr_vars:
+        raise ValueError("Treatment variable cannot be included in the MTRs")
     o = SimpleNamespace(**options)
+    o.treat = treat
     o.ivlike = ivlike_list
     o.subset = [subset] if isinstance(subset, str) else subset
     o.target = target.lower() if target is not None else None

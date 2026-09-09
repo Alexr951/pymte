@@ -49,8 +49,9 @@ tolerances documented in the test suite.
 | (R's global RNG) | `seed` |
 
 Not available: `direct` other than the default least squares, `soft`,
-`rescale`, `debug`, `smallreturnlist`, the deprecated `lpsolver*` arguments
-and the CPLEX backend.
+`rescale`, `debug`, `smallreturnlist`, the deprecated `lpsolver*` arguments,
+the CPLEX backend, separate lower and upper values of `criterion_tol`, and
+R's fallback of building a propensity formula when none is passed.
 
 ## Results
 
