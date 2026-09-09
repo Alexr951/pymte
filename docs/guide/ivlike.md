@@ -8,10 +8,13 @@ kernelspec:
 
 The moment approach matches the MTR functions to *IV-like estimands*:
 coefficients of linear regressions of the outcome that can be written as
-$\beta_s = E[s(D, Z)\,Y]$ for a known weight $s$. Mogstad, Santos and
-Torgovitsky (2018) show that each such coefficient is a linear function of
-the MTR coefficients, which yields the moment conditions the estimator
-uses.
+$\beta_s = E[s(D, X, Z)\,Y]$ for a known weight $s$. Mogstad, Santos and
+Torgovitsky (2018, Proposition 1) show that each such coefficient is a
+linear function of the MTR coefficients, which yields the moment
+conditions the estimator uses. Adding estimands can only shrink the
+identified set; which ones to use is the researcher's choice, and is the
+main difference from the regression approach, which uses the whole
+conditional mean of the outcome.
 
 ## Specifying regressions
 
@@ -86,7 +89,7 @@ pymte.ivmte(
 
 The fitted regressions and their weights are available for inspection.
 Each moment's ``gamma0``/``gamma1`` rows are the integrals of the MTR bases
-against $s(0, Z)\,1\{u > p\}$ and $s(1, Z)\,1\{u \le p\}$:
+against $s(0, X, Z)\,1\{u > p\}$ and $s(1, X, Z)\,1\{u \le p\}$:
 
 ```{code-cell} python
 import pandas as pd

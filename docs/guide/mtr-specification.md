@@ -27,6 +27,13 @@ which is close to R's: `+` adds terms, `:` interacts, `a*b` expands to
 Python expression. The R spelling `I(u^2)` is accepted as a convenience and
 rewritten to `I(u**2)`.
 
+Interactions between $u$ and covariates let the shape of the MTR in $u$
+vary with $x$. Leaving them out imposes additive separability,
+$m_d(u, x) = m_d^U(u) + m_d^X(x)$, the assumption of Brinch, Mogstad and
+Wiswall (2017) under which variation in the propensity score across
+covariate cells traces out one common function of $u$; it can narrow the
+bounds considerably (Mogstad and Torgovitsky 2018, Section 6.2).
+
 The unobservable must enter every term as a monomial: `u`, `I(u**k)`, or
 one of these interacted with covariates (`x:u`, `x:I(u**3)`). Anything else,
 such as `log(u)` or `I((x*u)**2)`, is rejected with an error, because the

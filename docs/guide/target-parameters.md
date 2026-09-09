@@ -6,15 +6,19 @@ kernelspec:
 
 # Target parameters
 
-Every target parameter is a weighted average of the marginal treatment
-effect,
+Every target parameter is a weighted average of the two marginal treatment
+response functions,
 
 $$
 \beta^\star = E\left[\int_0^1 \big(m_1(u, X)\,\omega_1^\star(u, X, Z) + m_0(u, X)\,\omega_0^\star(u, X, Z)\big)\,du\right],
 $$
 
-with known weights. The package supports the conventional parameters below
-and arbitrary piecewise-constant weights in $u$.
+with weights that are known or identified from the data. For a treatment
+effect the two weights are negatives of each other,
+$\omega_0^\star = -\omega_1^\star$, so that the parameter is a weighted average
+of the MTE $m_1 - m_0$; the weights on $m_1$ are tabulated below. The
+package supports the conventional parameters and arbitrary
+piecewise-constant weights in $u$.
 
 | `target`    | $\omega_1^\star$                                           | description |
 |-------------|------------------------------------------------------------|-------------|
@@ -25,7 +29,12 @@ and arbitrary piecewise-constant weights in $u$.
 | `"avglate"` | $1\{p(X,z_0) < u \le p(X,z_1)\}/\lvert p(X,z_1) - p(X,z_0)\rvert$ | population average of the covariate-specific LATEs |
 | `"genlate"` | $1\{\underline u < u \le \bar u\}/(\bar u - \underline u)$ | generalised LATE between `genlate_lb` and `genlate_ub` |
 
-$\omega_0^\star = -\omega_1^\star$ in all cases.
+$\omega_0^\star = -\omega_1^\star$ in all cases. The LATE weights are those of
+Imbens and Angrist (1994) written in the selection model: the compliers
+from $z_0$ to $z_1$ are the units with $p(X, z_0) < U \le p(X, z_1)$. The
+generalised LATE of Heckman and Vytlacil (2005) replaces the two
+propensity scores by chosen values of $u$, which allows a LATE to be
+extrapolated beyond the support of the instrument.
 
 ```{code-cell} python
 import pymte
@@ -44,7 +53,9 @@ pymte.ivmte(sim, target="late", late_from={"z": 1}, late_to={"z": 3}, **common).
 
 `late_x` restricts the LATE or generalised LATE to a covariate cell. The
 propensity score is then evaluated at the fixed covariate values and the
-expectation is taken over that cell only:
+expectation is taken over that cell only. No smoothing is done, so the
+conditioning variables must be discrete and the cell must contain
+observations:
 
 ```{code-cell} python
 pymte.ivmte(sim, target="late", late_from={"z": 1}, late_to={"z": 3}, late_x={"x": 2}, **common).bounds
@@ -53,6 +64,21 @@ pymte.ivmte(sim, target="late", late_from={"z": 1}, late_to={"z": 3}, late_x={"x
 ```{code-cell} python
 pymte.ivmte(sim, target="genlate", genlate_lb=0.2, genlate_ub=0.42, **common).bounds
 ```
+
+## Policy relevant treatment effects
+
+Mogstad and Torgovitsky (2018, Table 2) express the policy relevant
+treatment effects of Heckman and Vytlacil (2001) as weights of the same
+form. A policy that raises every propensity score by $\alpha$ has
+
+$$
+\omega_1^\star(u, X, Z) = \frac{\mathbf 1\{u \le p(X, Z) + \alpha\} - \mathbf 1\{u \le p(X, Z)\}}{\alpha},
+$$
+
+which is piecewise constant in $u$ with knots at $p(X, Z)$ and
+$p(X, Z) + \alpha$ and can be passed through the custom weights described
+below. The same holds for a proportional change in the propensity score
+and for a shift in one component of the instrument.
 
 ```{note}
 The R package redefined `late` in July 2022. Before that, `late` used the

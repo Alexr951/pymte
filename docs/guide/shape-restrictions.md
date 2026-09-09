@@ -16,14 +16,21 @@ linear inequalities on the MTR coefficients.
 `m0_lb`, `m0_ub`, `m1_lb`, `m1_ub` bound $m_0$ and $m_1$; `mte_lb`,
 `mte_ub` bound the marginal treatment effect $m_1 - m_0$. By default $m_0$
 and $m_1$ are restricted to the observed range of the outcome, which for a
-binary outcome means $[0, 1]$; the MTE is unrestricted unless bounds are
-given.
+binary outcome means $[0, 1]$. No separate MTE constraint is added by
+default; the MTR bounds already imply
+$m_{1,lb} - m_{0,ub} \le m_1 - m_0 \le m_{1,ub} - m_{0,lb}$, and `mte_lb`,
+`mte_ub` tighten this, for example `mte_ub=0` for a treatment that cannot
+help anyone.
 
 ## Monotonicity
 
 `m0_inc`, `m0_dec`, `m1_inc`, `m1_dec` impose that the MTRs are weakly
 increasing or decreasing in $u$; `mte_inc`, `mte_dec` do the same for the
-MTE. Setting both `inc` and `dec` forces constancy in $u$.
+MTE. Setting both `inc` and `dec` forces constancy in $u$. A decreasing
+MTE says that units more willing to take treatment (smaller $u$) gain
+more from it, in the spirit of the monotone treatment selection assumption
+of Manski and Pepper (2000); an MTE constant in $u$ rules out selection on unobserved gains,
+in which case the LATE already identifies the ATE.
 
 ```{code-cell} python
 import pymte

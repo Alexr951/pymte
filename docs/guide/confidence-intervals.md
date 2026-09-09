@@ -54,6 +54,15 @@ r.bounds_ci["forward"]
 The p-value for a zero target inverts the region: it is one minus the
 largest level at which the region still excludes zero.
 
+```{warning}
+These are the procedures of Andrews and Han (2009), which the R package
+adopts for want of a method that is both valid and computable for this
+problem. They are known not to be valid in general for interval endpoints
+defined by moment inequalities. Shea and Torgovitsky (2023) recommend
+reading them as an indication of statistical uncertainty rather than as
+regions with exact coverage.
+```
+
 ```{code-cell} python
 r.p_value, r.bounds_se
 ```

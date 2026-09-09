@@ -63,6 +63,8 @@ b.criterion, b.specification_p_value
 ```
 
 The test is skipped when the sample criterion is zero (the moments are
-matched exactly) and for the regression approach. Set
+matched exactly) and for the regression approach, whose least-squares
+identified set is never empty, so its minimum criterion carries no
+evidence about specification. Set
 `specification_test=False` to skip it in any case, which saves one linear
 program per replicate.
