@@ -49,6 +49,7 @@ docs = [
     "ipykernel",
     "numpydoc>=1.6",
     "matplotlib>=3.7",
+    "sphinx-autobuild",
 ]
 dev = [
     "pytest>=7",
@@ -58,7 +59,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/alexronczewski/pymte"
+Homepage = "https://github.com/alexr951/pymte"
 Documentation = "https://pymte.readthedocs.io"
 "R package" = "https://github.com/jkcshea/ivmte"
 

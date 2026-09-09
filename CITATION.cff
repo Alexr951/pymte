@@ -6,7 +6,7 @@ authors:
   - family-names: Ronczewski
     given-names: Alex
 license: GPL-3.0-or-later
-repository-code: "https://github.com/alexronczewski/pymte"
+repository-code: "https://github.com/alexr951/pymte"
 abstract: >-
   A Python port of the R package ivmte by Joshua Shea and Alexander
   Torgovitsky, implementing the marginal treatment effect framework of

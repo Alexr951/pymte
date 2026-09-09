@@ -22,7 +22,7 @@ exclude_patterns = ["_build", "jupyter_execute"]
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
 html_theme_options = {
-    "github_url": "https://github.com/alexronczewski/pymte",
+    "github_url": "https://github.com/alexr951/pymte",
     "navigation_with_keys": False,
 }
 
