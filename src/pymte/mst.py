@@ -742,7 +742,12 @@ class IVMTEResult:
                 f"[{fmt_result(self.bounds[0])}, {fmt_result(self.bounds[1])}]"
             )
             assert self.audit is not None
-            lines.append(f"Audit terminated successfully after {self.audit.audit_count} round(s)")
+            if len(self.audit.violations):
+                lines.append(f"Audit reached audit_max ({self.audit.audit_count})")
+            else:
+                lines.append(
+                    f"Audit terminated successfully after {self.audit.audit_count} round(s)"
+                )
         else:
             assert self.point_estimate is not None
             lines.append(
