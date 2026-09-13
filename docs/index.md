@@ -39,6 +39,5 @@ api
 migration
 datasets
 faq
-changelog
 citing
 ```
