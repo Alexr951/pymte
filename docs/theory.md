@@ -4,6 +4,17 @@ The options of `ivmte()` are statements about the model below. The notation foll
 Mogstad, Santos and Torgovitsky (2018), hereafter MST; Mogstad and
 Torgovitsky (2018) survey the same material at greater length.
 
+For a first pass without the mathematics, Chavez (2025) is a good place
+to start. It tells the history from Roy (1951) and Heckman's selection
+models through Imbens and Angrist's LATE to the unification by Heckman and
+Vytlacil, explains why two valid instruments for schooling can give returns
+of 7 percent and 13 percent without either being wrong, and is frank about
+the reasons the framework is used less than it deserves. One of those
+reasons, that a discrete instrument identifies only a few points of the
+MTE curve, is the problem this package addresses: the moment-based
+framework below reports bounds for whatever the instrument leaves
+unidentified.
+
 ## The selection model
 
 There is a binary treatment $D$, an outcome $Y = D Y_1 + (1 - D) Y_0$,
@@ -198,6 +209,9 @@ whether a positive minimum criterion is compatible with sampling noise
 - Carneiro, P., J. J. Heckman and E. J. Vytlacil (2011). Estimating
   Marginal Returns to Education. *American Economic Review* 101(6),
   2754-2781.
+- Chavez, C. (2025). Why Don't We Talk Enough About Marginal Treatment
+  Effects? Substack, 12 December 2025.
+  https://carloschavezp29.substack.com/p/why-dont-we-talk-enough-about-marginal
 - Cornelissen, T., C. Dustmann, A. Raute and U. Schönberg (2016). From LATE
   to MTE: Alternative Methods for the Evaluation of Policy Interventions.
   *Labour Economics* 41, 47-60.
