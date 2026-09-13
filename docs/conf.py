@@ -35,6 +35,7 @@ numpydoc_class_members_toctree = False
 myst_enable_extensions = ["dollarmath", "amsmath", "colon_fence"]
 nb_execution_mode = "cache"
 nb_execution_timeout = 600
+nb_output_stderr = "remove"
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
