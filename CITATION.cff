@@ -6,6 +6,8 @@ authors:
   - family-names: Ronczewski
     given-names: Alex
 license: GPL-3.0-or-later
+version: 1.0.0
+doi: 10.5281/zenodo.22739131
 repository-code: "https://github.com/alexr951/pymte"
 abstract: >-
   A Python port of the R package ivmte by Joshua Shea and Alexander

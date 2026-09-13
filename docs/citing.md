@@ -59,7 +59,7 @@ The `AE` dataset is derived from Angrist and Evans (1998):
 }
 ```
 
-The package itself can be cited from `CITATION.cff` in the repository.
+The package itself has a Zenodo DOI, [10.5281/zenodo.22739131](https://doi.org/10.5281/zenodo.22739131); `CITATION.cff` in the repository carries the same entry.
 
 ## Licence
 
