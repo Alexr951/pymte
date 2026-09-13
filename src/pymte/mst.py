@@ -13,6 +13,7 @@ regions of partially identified targets.
 
 from __future__ import annotations
 
+import re
 import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -24,7 +25,7 @@ import pandas as pd
 from numpy.typing import NDArray
 from scipy.stats import chi2, norm
 
-from pymte.audit import AuditError, AuditResult, audit, fmt_result
+from pymte.audit import AuditError, AuditResult, audit, fmt_result, status_string
 from pymte.callcheck import formula_vars, get_xz, required_columns
 from pymte.ivlike import IVLikeFit, MomentSet, iv_estimate
 from pymte.lp import (
@@ -414,12 +415,47 @@ class BootstrapResult:
 
     n_draws: int
     n_failed: int
+    n_skipped: int = 0
     bounds: NDArray[np.float64] | None = None
     points: NDArray[np.float64] | None = None
     mtr: NDArray[np.float64] | None = None
     propensity: NDArray[np.float64] | None = None
     spec_stats: NDArray[np.float64] | None = None
     j_stats: NDArray[np.float64] | None = None
+
+
+_VARIATION_TEXT = (
+    "Insufficient variation in categorical variables (i.e. factor variables, binary "
+    "variables, boolean expressions) in the bootstrap sample. Additional bootstrap samples "
+    "will be drawn."
+)
+
+
+def _variation_checks(
+    data: pd.DataFrame, cols: Sequence[str], formulas: Sequence[str]
+) -> Callable[[pd.DataFrame], bool]:
+    """Build R's check that a resample keeps every factor level and binary variable varying.
+
+    The check covers the levels of every ``C(...)`` factor in the formulas,
+    every binary column in use and every boolean expression ``I(a == b)``.
+    """
+    text = " ".join(formulas)
+    factors = {
+        v: sorted(data[v].unique()) for v in set(re.findall(r"C\((\w+)\)", text)) if v in data
+    }
+    binary = [
+        c for c in cols if data[c].nunique() == 2 and data[c].min() == 0 and data[c].max() == 1
+    ]
+    exprs = re.findall(r"I\(([^()]*(?:==|!=|>=|<=|>|<)[^()]*)\)", text)
+
+    def ok(sample: pd.DataFrame) -> bool:
+        return (
+            all(sorted(sample[v].unique()) == levels for v, levels in factors.items())
+            and all(sample[c].nunique() > 1 for c in binary)
+            and all(len(np.unique(np.asarray(sample.eval(e)))) > 1 for e in exprs)
+        )
+
+    return ok
 
 
 def _resample(
@@ -429,8 +465,13 @@ def _resample(
     replicate: Callable[[NDArray[np.intp]], Replicate],
     bootstraps: int,
     rng: np.random.Generator,
+    screen: Callable[[NDArray[np.intp]], bool] | None = None,
 ) -> BootstrapResult:
-    """Draw ``bootstraps`` usable replicates, redrawing after failures."""
+    """Draw ``bootstraps`` usable replicates, redrawing after failures.
+
+    A draw that fails ``screen`` (insufficient variation, see
+    :func:`_variation_checks`) is redrawn before estimating, as in R.
+    """
     if not replace and m > n:
         raise ValueError(
             "'bootstraps_m' cannot exceed the sample size when 'bootstraps_replace' is False"
@@ -438,10 +479,16 @@ def _resample(
     max_failures = 10 * bootstraps
     reps: list[Replicate] = []
     failed = 0
+    skipped = 0
     while len(reps) < bootstraps:
-        idx = rng.choice(n, size=m, replace=replace)
+        idx = np.asarray(rng.choice(n, size=m, replace=replace), dtype=np.intp)
+        if screen is not None and not screen(idx):
+            skipped += 1
+            if skipped > max_failures:
+                raise RuntimeError(f"{skipped} bootstrap draws lacked variation; giving up")
+            continue
         try:
-            reps.append(replicate(np.asarray(idx, dtype=np.intp)))
+            reps.append(replicate(idx))
         except Exception as err:  # noqa: BLE001 - any failure means redraw, as in R
             failed += 1
             if failed > max_failures:
@@ -464,6 +511,7 @@ def _resample(
     return BootstrapResult(
         n_draws=len(reps),
         n_failed=failed,
+        n_skipped=skipped,
         bounds=stack("bounds"),
         points=column("point"),
         mtr=stack("mtr"),
@@ -734,10 +782,22 @@ class IVMTEResult:
     ci_type: str = "backward"
 
     def summary(self) -> str:
-        """Return a text summary in the style of R's ``summary.ivmte``."""
+        """Return a text summary in the style of R's ``summary.ivmte``.
+
+        As in R, a warning is issued when either bound problem did not
+        finish with an optimal status.
+        """
         s0, s1 = self.specs
         lines = []
         if self.bounds is not None:
+            assert self.audit is not None
+            notes = [
+                f"{side} bound optimization status is {status_string(self.audit.status[key])}."
+                for side, key in (("Lower", "min"), ("Upper", "max"))
+                if self.audit.status[key] != 1
+            ]
+            if notes:
+                warnings.warn(" ".join(notes), stacklevel=2)
             lines.append(
                 "Bounds on the target parameter: "
                 f"[{fmt_result(self.bounds[0])}, {fmt_result(self.bounds[1])}]"
@@ -1467,6 +1527,7 @@ def ivmte(
             "Estimation only uses the subsample of complete observations, in which there is "
             f"no variation in the treatment variable, {treat}."
         )
+    o.variation_ok = _variation_checks(data, cols, formulas)
 
     # -- estimation ------------------------------------------------------------
     est = ivmte_estimate(data, o, rng, log)
@@ -1537,9 +1598,14 @@ def _bootstrap(
             spec_stat=rep.spec_stat,
         )  # fmt: skip
 
+    def screen(idx: NDArray[np.intp]) -> bool:
+        return bool(o.variation_ok(model.data.iloc[idx]))
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        boot = _resample(n, m, o.bootstraps_replace, replicate, o.bootstraps, rng)
+        boot = _resample(n, m, o.bootstraps_replace, replicate, o.bootstraps, rng, screen)
+    if boot.n_skipped:
+        warnings.warn(_VARIATION_TEXT, stacklevel=3)
     res.bootstraps, res.bootstraps_failed = boot.n_draws, boot.n_failed
     if res.bounds is not None:
         assert boot.bounds is not None and res.audit is not None

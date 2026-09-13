@@ -121,6 +121,27 @@ def test_specification_test_runs_when_criterion_positive(oracle):
     assert "Bootstrapped specification test p-value" in r.summary()
 
 
+def test_resamples_without_variation_are_redrawn():
+    sim = pymte.load_sim_data().copy()
+    # A rare factor level: most resamples of 200 rows miss it and are skipped.
+    sim.loc[:1, "z"] = 9
+    with pytest.warns(UserWarning, match="Insufficient variation"):
+        r = pymte.ivmte(
+            sim, ivlike="y ~ d + C(z)", target="ate", m0="~ u", m1="~ u", propensity="d ~ C(z)",
+            point=True, bootstraps=3, bootstraps_m=200, seed=0,
+        )  # fmt: skip
+    assert r.bootstraps == 3 and r.bootstraps_failed == 0
+
+
+def test_summary_warns_on_a_suboptimal_bound_status():
+    sim = pymte.load_sim_data()
+    r = pymte.ivmte(sim, ivlike="y ~ d + C(z)", target="ate", m0="~ u", m1="~ u",
+                    propensity="d ~ C(z)", point=False, seed=0)  # fmt: skip
+    r.audit.status["max"] = 6
+    with pytest.warns(UserWarning, match="Upper bound optimization status is suboptimal"):
+        r.summary()
+
+
 def test_subsampling_and_argument_checks():
     sim = pymte.load_sim_data()
     r = pymte.ivmte(
