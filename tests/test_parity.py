@@ -277,8 +277,9 @@ def test_regression_qcqp_bounds_contain_least_squares_target(sim):
         criterion_tol=0,
     )  # fmt: skip
     # Gurobi reports [-0.553351, -0.5528199] here, a width driven by its
-    # feasibility tolerance; the least-squares set itself is a point.
-    np.testing.assert_allclose(tight.bounds, (-0.5530917, -0.5530917), atol=1e-5)
+    # feasibility tolerance; the least-squares set itself is a point, and
+    # Clarabel's width varies with the platform at the 1e-5 level.
+    np.testing.assert_allclose(tight.bounds, (-0.5530917, -0.5530917), atol=1e-4)
     assert tight.bounds[1] - tight.bounds[0] < r.bounds[1] - r.bounds[0]
 
 
