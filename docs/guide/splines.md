@@ -22,10 +22,11 @@ import matplotlib.pyplot as plt
 from pymte import USpline
 
 u = np.linspace(0, 1, 401)
-fig, axes = plt.subplots(1, 2, figsize=(9, 3), sharey=True)
+fig, axes = plt.subplots(1, 2, figsize=(9, 3.2), sharey=True)
 for ax, sp in zip(axes, [USpline(0, [0.25, 0.5, 0.75], intercept=True), USpline(2, [1/3, 2/3])]):
     ax.plot(u, sp.basis(u))
-    ax.set_title(f"degree {sp.degree}, knots {sp.knots}, intercept={sp.intercept}")
+    knots = ", ".join(f"{k:.2g}" for k in sp.knots)
+    ax.set_title(f"degree {sp.degree}, knots {knots}, intercept={sp.intercept}", fontsize=10)
     ax.set_xlabel("u")
 plt.tight_layout()
 ```
