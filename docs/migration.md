@@ -137,7 +137,7 @@ option translators) have no counterpart.
 - **Audit grids.** The end points 0 and 1 are always added to a custom
   `audit_u` (R adds them only when `initgrid_u` is given too), and the
   check that the initial grid equals the audit grid compares the grids
-  actually used rather than the requested sizes. R drops grid points whose
+  actually used, where R compares the requested sizes. R drops grid points whose
   MTR basis rows coincide before building the constraints, deduplicates
   bound rows on `m0` and `m1` separately and never deduplicates `mte`
   rows; `pymte` builds every grid point and removes duplicate rows of any

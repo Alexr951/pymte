@@ -49,7 +49,10 @@ rhalton(5)
 
 When more than `audit_add` points are violated, the worst violation in
 every (restriction, covariate cell) group is added first, then the second
-worst in every group, and so on.
+worst in every group, and so on. The limit applies to the total number of
+points added in a round. The R documentation describes `audit.add` as a
+limit per kind of restriction; the R code applies it to the total, and
+this package follows the code.
 
 ## Diagnostics
 
@@ -78,7 +81,15 @@ r.audit.audit_count, r.audit.constraints.n, r.audit.status
 ## Infeasible problems
 
 If the restrictions cannot all be satisfied, the criterion problem is
-infeasible and an error names the likely cause. The remedy is to relax the
-bounds or monotonicity restrictions. A bound problem that is unbounded
-signals an initial grid that is too coarse; the estimator then enlarges the
-initial grid by half and retries, up to three times, before giving up.
+infeasible. The estimator then solves it again without the shape
+restrictions and the error names the restrictions that solution violates,
+marking the ones that came from the range of the outcome by default. The
+remedy is to relax those bounds or monotonicity restrictions.
+
+A bound problem can also fail. As in R, the estimator retries up to three
+times on the same audit grid: on an unbounded, suboptimal or
+infeasible-or-unbounded status the initial grid grows by half (up to the
+audit grid), and on an infeasible, numerical or infeasible-or-unbounded
+status `criterion_tol` doubles (from zero it becomes 0.05). The moment
+approach retries on the first group of statuses only. The retries are
+logged in `messages`.

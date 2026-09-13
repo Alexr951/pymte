@@ -45,7 +45,8 @@ $$
 
 and the forward region swaps the quantiles and signs. Quantiles are of type
 1 (inverse empirical distribution function). Both regions are stored;
-`ci_type` picks the one shown in the summary.
+`ci_type` picks the one shown in the summary (`"backward"`, `"forward"` or
+`"both"`).
 
 ```{code-cell} python
 r.bounds_ci["forward"]
@@ -55,12 +56,13 @@ The p-value for a zero target inverts the region: it is one minus the
 largest level at which the region still excludes zero.
 
 ```{warning}
-These are the procedures of Andrews and Han (2009), which the R package
-adopts for want of a method that is both valid and computable for this
-problem. They are known not to be valid in general for interval endpoints
-defined by moment inequalities. Shea and Torgovitsky (2023) recommend
-reading them as an indication of statistical uncertainty rather than as
-regions with exact coverage.
+These are the forward and reverse bootstrap procedures discussed by
+Andrews and Han (2009), who show that they are not valid in general for
+interval endpoints defined by moment inequalities. Shea and Torgovitsky
+(2023, Section 4.9) adopt them because no method for the MTE framework is
+both theoretically satisfactory and computationally tractable, and read
+them as a reasonable indication of statistical uncertainty. Treat the
+levels as nominal.
 ```
 
 ```{code-cell} python
@@ -99,9 +101,10 @@ p.propensity_ci["nonparametric"].round(3)
 
 ## Failed draws
 
-A resample can be unusable, for example when a factor level disappears or
-a bound problem has no solution. Such draws are discarded and redrawn; the
-count is reported in `bootstraps_failed`. Bootstrap draws in R and Python
-come from different random number generators, so individual replicates
-differ between the two implementations while the intervals agree up to
-simulation noise.
+A resample in which a factor level, a binary variable or a boolean term
+has no variation is redrawn before estimation, with a warning, as in R. A
+resample whose estimation fails, for example because a bound problem has
+no solution, is discarded and redrawn; the count is reported in
+`bootstraps_failed`. Bootstrap draws in R and Python come from different
+random number generators, so individual replicates differ between the two
+implementations while the intervals agree up to simulation noise.

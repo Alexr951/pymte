@@ -140,11 +140,14 @@ $$
 \hat Q = \min_\theta \sum_s \big|\hat\Gamma_s \theta - \hat\beta_s\big|
 $$
 
-and compute bounds over $\{\theta : \sum_s |\hat\Gamma_s \theta - \hat\beta_s| \le (1 + \kappa)\hat Q\}$
-for a small tolerance $\kappa$ (`criterion_tol`). Both problems are linear
-programs. MST give conditions under which the resulting interval is a
-consistent estimate of the identified set; the tolerance is part of that
-argument, which is why the default is positive.
+and compute bounds over the coefficients whose criterion is within a
+tolerance of $\hat Q$. MST (equation 27) add a tolerance $\kappa_n$ to the
+minimum; the R package and this package use the relative form of Shea and
+Torgovitsky (2023, equation 20), $\sum_s |\hat\Gamma_s \theta - \hat\beta_s| \le (1 + \sigma)\hat Q$
+with $\sigma$ given by `criterion_tol`. Both problems are linear programs.
+MST give conditions under which the resulting interval is a consistent
+estimate of the identified set; the tolerance is part of that argument,
+which is why the default is positive.
 
 The *regression approach* (Brinch, Mogstad and Wiswall 2017; Shea and
 Torgovitsky 2023) replaces the IV-like moments by the conditional mean of
@@ -160,9 +163,11 @@ integrating each basis function against these weights. The criterion is
 then $\hat Q = \min_\theta \tfrac{1}{n}\sum_i (Y_i - \hat\Gamma_i'\theta)^2$, a
 quadratic program, and the bound problems are linear objectives under one
 quadratic constraint. The regression identified set is contained in the
-moment identified set for any choice of IV-like estimands, and the
-researcher need not choose estimands at all. Its minimum criterion is
-never zero, however, so it cannot support a specification test.
+moment identified set for any choice of IV-like estimands (MST, Proposition
+3), and the researcher need not choose estimands at all. The least-squares
+identified set is never empty, so its minimum criterion carries no
+evidence about specification and no specification test is available for
+this approach.
 
 ## Shape restrictions and the audit
 
@@ -190,6 +195,9 @@ whether a positive minimum criterion is compatible with sampling noise
 - Bugni, F. A., I. A. Canay and X. Shi (2015). Specification Tests for
   Partially Identified Models Defined by Moment Inequalities. *Journal of
   Econometrics* 185(1), 259-282.
+- Carneiro, P., J. J. Heckman and E. J. Vytlacil (2011). Estimating
+  Marginal Returns to Education. *American Economic Review* 101(6),
+  2754-2781.
 - Cornelissen, T., C. Dustmann, A. Raute and U. Schönberg (2016). From LATE
   to MTE: Alternative Methods for the Evaluation of Policy Interventions.
   *Labour Economics* 41, 47-60.
@@ -199,6 +207,8 @@ whether a positive minimum criterion is compatible with sampling noise
 - Heckman, J. J. and E. Vytlacil (1999). Local Instrumental Variables and
   Latent Variable Models for Identifying and Bounding Treatment Effects.
   *Proceedings of the National Academy of Sciences* 96(8), 4730-4734.
+- Heckman, J. J. and E. Vytlacil (2001). Policy-Relevant Treatment Effects.
+  *American Economic Review* 91(2), 107-111.
 - Heckman, J. J. and E. Vytlacil (2005). Structural Equations, Treatment
   Effects, and Econometric Policy Evaluation. *Econometrica* 73(3), 669-738.
 - Imbens, G. W. and J. D. Angrist (1994). Identification and Estimation of
@@ -214,6 +224,6 @@ whether a positive minimum criterion is compatible with sampling noise
   Economics* 10, 577-613.
 - Shea, J. and A. Torgovitsky (2023). ivmte: An R Package for Extrapolating
   Instrumental Variable Estimates Away From Compliers. *Observational
-  Studies* 9(2), 1-42.
+  Studies* 9(2), 1-42. doi:10.1353/obs.2023.0016.
 - Vytlacil, E. (2002). Independence, Monotonicity, and Latent Index Models:
   An Equivalence Result. *Econometrica* 70(1), 331-341.

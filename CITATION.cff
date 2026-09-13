@@ -41,6 +41,7 @@ references:
     start: 1
     end: 42
     year: 2023
+    doi: 10.1353/obs.2023.0016
   - type: software
     title: "ivmte: Instrumental Variables: Extrapolation by Marginal Treatment Effects"
     authors:

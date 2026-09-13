@@ -45,9 +45,13 @@ r = pymte.ivmte(
 r
 ```
 
-Every coefficient of every regression is a moment by default. The number
-of linearly independent moments is reported and compared with the number of
-MTR coefficients to decide between point and partial identification.
+Every coefficient of every regression is a moment by default. A regressor
+that is collinear with the earlier ones is dropped, together with its
+coefficient, in the way R's `lm.fit` does; collinear instruments are
+dropped from the first stage. The number of linearly independent moments
+is reported and compared with the number of MTR coefficients to decide
+between point and partial identification. No variable may be named
+`intercept`, since that word names the constant in `components`.
 
 ```{code-cell} python
 r.ivlike.names, r.ivlike.beta.round(4)
@@ -56,7 +60,9 @@ r.ivlike.names, r.ivlike.beta.round(4)
 ## Selecting coefficients
 
 `components` names the coefficients to use from each regression, with
-`"intercept"` for the constant and `None` for all of them:
+`"intercept"` for the constant and `None` for all of them. A factor such as
+`"C(z)"` selects all of its level columns, and the factors of an
+interaction may be written in either order (`"d:C(z)"` or `"C(z):d"`):
 
 ```{code-cell} python
 pymte.ivmte(

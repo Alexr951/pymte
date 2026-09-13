@@ -23,7 +23,8 @@ If you use it, please cite the methodological papers and the R package.
   volume  = {9},
   number  = {2},
   pages   = {1--42},
-  year    = {2023}
+  year    = {2023},
+  doi     = {10.1353/obs.2023.0016}
 }
 
 @article{heckman2005structural,
