@@ -69,8 +69,7 @@ The full user guide, a theory primer and the API reference are on
 
 ## Contributing
 
-`pymte` is a new project and I would like it to grow with the people who
-use it. If you find a bug, want a feature, see a way to make something
+`pymte` is a new project. If you find a bug, want a feature, see a way to make something
 faster, or have an application that the package does not yet cover, open an
 issue or a pull request on GitHub. Small fixes, new examples, and
 documentation improvements are as welcome as new estimators. If you would
