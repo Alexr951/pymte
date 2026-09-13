@@ -419,7 +419,7 @@ def _pad(mat: sp.csr_matrix | NDArray[np.float64], n_slack: int) -> sp.csr_matri
 
 def lp_setup(
     crit: Criterion,
-    shape: ShapeConstraints,
+    shape: ShapeConstraints | None,
     equal: NDArray[np.float64] | None = None,
 ) -> LinearConstraints:
     """Assemble the linear constraints shared by the criterion and bound problems.
@@ -428,8 +428,9 @@ def lp_setup(
     ----------
     crit : L1Criterion or LSCriterion
         The criterion, which fixes the variable layout.
-    shape : ShapeConstraints
-        Shape restrictions ``A theta <= b`` (on the coefficients only).
+    shape : ShapeConstraints or None
+        Shape restrictions ``A theta <= b`` (on the coefficients only);
+        ``None`` for the unrestricted problem.
     equal : numpy.ndarray, optional
         Equality rows on the coefficients (``equal @ theta == 0``).
 
@@ -439,8 +440,8 @@ def lp_setup(
     """
     ns, j = crit.n_slack, crit.n_coef
     n = ns + j
-    a_ub = _pad(shape.A, ns) if shape.n else None
-    b_ub = shape.b if shape.n else None
+    a_ub = _pad(shape.A, ns) if shape is not None and shape.n else None
+    b_ub = shape.b if shape is not None and shape.n else None
     eq_blocks, eq_rhs = [], []
     if isinstance(crit, L1Criterion):
         s = len(crit.beta)

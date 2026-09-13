@@ -35,11 +35,25 @@ from pymte.mtr import MTRSpec
 
 
 class AuditError(RuntimeError):
-    """The criterion or a bound problem could not be solved."""
+    """The criterion or a bound problem could not be solved.
 
-    def __init__(self, message: str, status: int) -> None:
+    Attributes
+    ----------
+    status : int
+        Canonical solver status code of the failed problem.
+    stage : {"criterion", "bound"}
+        Which problem failed.
+    grids : Grids or None
+        The grids in use, so that a retry can keep the audit grid.
+    """
+
+    def __init__(
+        self, message: str, status: int, stage: str = "criterion", grids: Grids | None = None
+    ) -> None:
         super().__init__(message)
         self.status = status
+        self.stage = stage
+        self.grids = grids
 
 
 @dataclass
@@ -249,6 +263,64 @@ def _relaxed_tol(tol: float) -> float:
     return float((tol / 10**mag) * 10 ** (mag / 2))
 
 
+_DEFAULT_NOTE = {
+    "m0.lb": "min. observed outcome by default",
+    "m1.lb": "min. observed outcome by default",
+    "m0.ub": "max. observed outcome by default",
+    "m1.ub": "max. observed outcome by default",
+}
+
+
+def _describe_restriction(kind: str, restrictions: dict[str, Any], defaults: Sequence[str]) -> str:
+    key = kind.replace(".", "_")
+    value = restrictions[key]
+    if isinstance(value, bool):
+        return f"{key} = {value}"
+    text = f"{key} = {round(float(value), 6)}"
+    if key in defaults:
+        text += f" ({_DEFAULT_NOTE[kind]})"
+    return text
+
+
+def _infeasibility_message(
+    status: int,
+    crit: Criterion,
+    equal: NDArray[np.float64] | None,
+    cons: ShapeConstraints,
+    restrictions: dict[str, Any],
+    defaults: Sequence[str],
+    audit_tol: float,
+    solver: str | None,
+    options: dict[str, Any] | None,
+) -> str:
+    """Diagnose an infeasible criterion problem as the R package does.
+
+    The criterion is minimised again without the shape restrictions and the
+    restrictions that solution violates are named, since incoherent shape
+    restrictions are the likely cause of an empty parameter space.
+    """
+    proved = "infeasible" if status == 2 else "infeasible or unbounded"
+    message = f"No solution since the solver proved the model was {proved}."
+    _, theta, _ = criterion_min(crit, lp_setup(crit, None, equal), solver, options)
+    if theta is not None:
+        violated = cons.residuals(theta) > audit_tol
+        kinds = [k for k in KINDS if k in set(cons.kind[violated])]
+        if kinds:
+            named = ", ".join(_describe_restriction(k, restrictions, defaults) for k in kinds)
+            message += (
+                " The model should only be infeasible if the implied parameter space is "
+                "empty. The likely cause of an empty parameter space is incoherent shape "
+                f"restrictions. For example, {named} are all set simultaneously. Try "
+                "changing the shape constraints on the MTR functions."
+            )
+    if status == 3:
+        message += (
+            " The model may be unbounded if the initial grid is too small. Try increasing "
+            "the parameters 'initgrid_nx' and 'initgrid_nu'."
+        )
+    return message
+
+
 def _check_criterion(res: SolveResult, alt: str) -> None:
     if res.status == 4:
         raise AuditError(
@@ -258,12 +330,6 @@ def _check_criterion(res: SolveResult, alt: str) -> None:
     if res.status == 5:
         raise AuditError(
             "No solution to minimizing the criterion due to numerical issues. " + alt, res.status
-        )
-    if res.status in (2, 3):
-        raise AuditError(
-            "The problem is infeasible: the shape restrictions cannot all be satisfied "
-            "together. Relax the bounds or monotonicity restrictions on the MTRs. " + alt,
-            res.status,
         )
     if res.x is None:
         raise AuditError(
@@ -280,6 +346,7 @@ def audit(
     data: pd.DataFrame,
     restrictions: dict[str, Any],
     *,
+    defaults: Sequence[str] = (),
     equal: NDArray[np.float64] | None = None,
     criterion_tol: float = 1e-4,
     audit_tol: float = 1e-6,
@@ -314,6 +381,9 @@ def audit(
         Estimation sample, from which the covariate grids are drawn.
     restrictions : dict
         Shape restrictions, see :func:`pymte.monobound.genmonobound_a`.
+    defaults : sequence of str, optional
+        Keys of ``restrictions`` that were not set by the user but taken
+        from the range of the outcome; named as such in error messages.
     equal : numpy.ndarray, optional
         Equality rows on the coefficients.
     criterion_tol : float
@@ -348,7 +418,10 @@ def audit(
     Raises
     ------
     AuditError
-        When the criterion or a bound problem has no usable solution.
+        When the criterion or a bound problem has no usable solution. An
+        infeasible criterion problem is diagnosed by solving it again
+        without the shape restrictions and naming the restrictions that
+        solution violates.
     """
     log = log if log is not None else []
     alt = "Try relaxing 'criterion_tol' or the shape restrictions."
@@ -376,6 +449,16 @@ def audit(
         crit_res, theta_crit, crit_min = criterion_min(
             crit, model, solver, solver_options_criterion
         )
+        if crit_res.status in (2, 3):
+            raise AuditError(
+                _infeasibility_message(
+                    crit_res.status, crit, equal, current, restrictions, defaults, audit_tol,
+                    solver, solver_options_criterion,
+                ),
+                crit_res.status,
+                "criterion",
+                grids,
+            )  # fmt: skip
         _check_criterion(crit_res, alt)
         assert theta_crit is not None and crit_min is not None
         log.append(f"    Minimum criterion: {fmt_result(crit_min)}")
@@ -389,6 +472,8 @@ def audit(
                 f"The {'minimization' if bad is min_res else 'maximization'} problem for the "
                 f"bounds returned no solution (status: {bad.status_str}). {alt}",
                 bad.status,
+                "bound",
+                grids,
             )
         result = AuditResult(
             lower=float(min_res.obj),
