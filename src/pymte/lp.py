@@ -291,8 +291,10 @@ def run_qcqp(
     return run_cvxpy(cvec, model, sense, solver, options, quad=quad)
 
 
-def magnitude(x: float) -> int:
-    """Order of magnitude of ``x`` (``floor(log10 |x|)``), as in the R package."""
+def magnitude(x: float) -> int | None:
+    """Order of magnitude of ``x`` (``floor(log10 |x|)``); ``None`` for zero, as R returns ``NA``."""
+    if x == 0:
+        return None
     return int(math.floor(math.log10(abs(x))))
 
 

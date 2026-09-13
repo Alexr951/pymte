@@ -244,6 +244,8 @@ def select_violations(viol: pd.DataFrame, audit_add: int) -> pd.DataFrame:
 def _relaxed_tol(tol: float) -> float:
     # R: (tol / 10^magnitude) * 10^(magnitude / 2), e.g. 1e-6 -> 1e-3.
     mag = magnitude(tol)
+    if mag is None:
+        return tol
     return float((tol / 10**mag) * 10 ** (mag / 2))
 
 
