@@ -208,7 +208,11 @@ def test_components_and_errors(datasets):
     assert fit.components == ("Intercept", "d")
     with pytest.raises(ValueError, match="not a coefficient"):
         iv_estimate("y ~ d + x", sim, treat="d", components=["w"])
-    with pytest.raises(ValueError, match="collinear"):
-        iv_estimate("y ~ d + x + x2", sim.assign(x2=sim["x"]), treat="d")
+    # A collinear regressor is dropped like lm.fit does, not rejected.
+    fit = iv_estimate("y ~ d + x + x2", sim.assign(x2=sim["x"]), treat="d")
+    assert fit.components == ("Intercept", "d", "x") and fit.s0.shape[1] == 3
+    np.testing.assert_allclose(fit.beta, iv_estimate("y ~ d + x", sim, treat="d").beta)
+    fit = iv_estimate("y ~ d + C(z) + d:C(z)", sim, treat="d", components=["C(z):d"])
+    assert fit.components == ("d:C(z)[T.1]", "d:C(z)[T.2]", "d:C(z)[T.3]")
     with pytest.raises(ValueError, match="selects no observations"):
         iv_estimate("y ~ d", sim, treat="d", subset="x > 100")

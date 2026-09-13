@@ -102,42 +102,83 @@ class MomentSet:
         return len(self.beta)
 
 
-def _check_rank(x: NDArray[np.float64], what: str) -> None:
-    if np.linalg.matrix_rank(x) < x.shape[1]:
-        raise ValueError(f"The {what} of an IV-like specification are collinear")
+def independent_columns(x: NDArray[np.float64], tol: float = 1e-7) -> list[int]:
+    """Columns R's ``lm.fit`` keeps: each column is dropped when it lies in the span of the earlier ones.
+
+    The residual of a column after projecting on the columns kept so far is
+    compared with ``tol`` times its norm, the rule of the pivoted QR
+    decomposition behind ``lm.fit``.
+    """
+    q = np.empty((len(x), 0))
+    keep = []
+    for j in range(x.shape[1]):
+        col = x[:, j]
+        resid = col - q @ (q.T @ col)
+        norm = np.linalg.norm(resid)
+        if norm > tol * np.linalg.norm(col) > 0:
+            q = np.column_stack([q, resid / norm])
+            keep.append(j)
+    return keep
+
+
+def _match(part: str, name: str) -> bool:
+    # A factor such as ``C(z)`` names every level column ``C(z)[T.1]``, ...
+    return name == part or name.startswith(part + "[")
 
 
 def _resolve_components(
     components: Sequence[str] | None, names: Sequence[str], formula: str
 ) -> list[int]:
+    """Positions of the requested coefficients, expanding factors and reordering interactions.
+
+    As in R, a component naming a factor selects all of its level columns,
+    the factors of an interaction may be given in any order, and
+    ``"intercept"`` names the constant.
+    """
     if not components:
         return list(range(len(names)))
-    lookup = {n: i for i, n in enumerate(names)}
-    lookup["intercept"] = lookup.get("Intercept", -1)
-    out = []
+    split = [n.split(":") for n in names]
+    out: list[int] = []
     for c in components:
-        if c not in lookup or lookup[c] < 0:
+        parts = ("Intercept" if c == "intercept" else c).split(":")
+        found = [
+            i
+            for i, np_ in enumerate(split)
+            if len(np_) == len(parts)
+            and all(any(_match(p, q) for q in np_) for p in parts)
+            and all(any(_match(p, q) for p in parts) for q in np_)
+        ]
+        if not found:
             raise ValueError(
                 f"Component {c!r} is not a coefficient of {formula!r}; available: {list(names)}"
             )
-        out.append(lookup[c])
+        out += [i for i in found if i not in out]
     return out
 
 
 def piv(
     y: NDArray[np.float64], x: NDArray[np.float64], z: NDArray[np.float64] | None = None
 ) -> NDArray[np.float64]:
-    """OLS (``z=None``) or TSLS coefficients of ``y`` on ``x`` with instruments ``z``."""
+    """OLS (``z=None``) or TSLS coefficients of ``y`` on ``x`` with instruments ``z``.
+
+    As in R's ``lm.fit``, a regressor that is collinear with the earlier
+    ones gets a ``nan`` coefficient instead of raising, and collinear
+    instruments are dropped from the first stage.
+    """
     n = len(y)
-    _check_rank(x, "regressors")
+    keep = independent_columns(x)
+    beta = np.full(x.shape[1], np.nan)
+    xk = x[:, keep]
     if z is None:
-        return np.asarray(np.linalg.solve(x.T @ x / n, x.T @ y / n), dtype=float)
-    _check_rank(z, "instruments")
+        beta[keep] = np.linalg.solve(xk.T @ xk / n, xk.T @ y / n)
+        return beta
     if z.shape[1] < x.shape[1]:
         raise ValueError("TSLS needs at least as many instruments as regressors")
-    exz = x.T @ z / n
-    pi = exz @ np.linalg.inv(z.T @ z / n)
-    return np.asarray(np.linalg.solve(pi @ exz.T, pi @ (z.T @ y / n)), dtype=float)
+    zk = z[:, independent_columns(z)]
+    exz = xk.T @ zk / n
+    pi = exz @ np.linalg.inv(zk.T @ zk / n)
+    beta[keep] = np.linalg.solve(pi @ exz.T, pi @ (zk.T @ y / n))
+    return beta
 
 
 def iv_estimate(
@@ -160,8 +201,11 @@ def iv_estimate(
     treat : str
         Name of the treatment variable.
     components : sequence of str, optional
-        Coefficients to use as estimands; ``"intercept"`` names the constant.
-        Default: all coefficients.
+        Coefficients to use as estimands; ``"intercept"`` names the constant,
+        a factor such as ``"C(z)"`` selects all of its level columns, and the
+        factors of an interaction may be given in any order. Default: all
+        coefficients. A component that is dropped for collinearity is
+        omitted silently, as in R.
     subset : str, optional
         A :meth:`pandas.DataFrame.eval` expression selecting the rows used.
 
@@ -171,16 +215,23 @@ def iv_estimate(
     """
     dm = design(formula, data, subset, treat)
     beta = piv(dm.y, dm.x, dm.z)
-    cpos = _resolve_components(components, dm.x_names, formula)
+    # Collinear regressors and instruments are dropped, together with the
+    # components they carried, as the R package does.
+    keep_x = [j for j in range(dm.x.shape[1]) if not np.isnan(beta[j])]
+    names = tuple(dm.x_names[j] for j in keep_x)
+    requested = _resolve_components(components, dm.x_names, formula)
+    cpos = [keep_x.index(j) for j in requested if j in keep_x]
+    x, x0, x1 = dm.x[:, keep_x], dm.x0[:, keep_x], dm.x1[:, keep_x]
     if dm.z is None:
-        s0, s1 = olsj(dm.x, dm.x0, dm.x1, cpos)
+        s0, s1 = olsj(x, x0, x1, cpos)
     else:
         assert dm.z0 is not None and dm.z1 is not None
-        s0, s1 = tsls(dm.x, dm.z, dm.z0, dm.z1, cpos)
+        keep_z = independent_columns(dm.z)
+        s0, s1 = tsls(x, dm.z[:, keep_z], dm.z0[:, keep_z], dm.z1[:, keep_z], cpos)
     return IVLikeFit(
         formula=formula,
-        components=tuple(dm.x_names[i] for i in cpos),
-        beta=beta[cpos],
+        components=tuple(names[i] for i in cpos),
+        beta=beta[keep_x][cpos],
         s0=np.asarray(s0, dtype=float),
         s1=np.asarray(s1, dtype=float),
         rows=dm.rows,
