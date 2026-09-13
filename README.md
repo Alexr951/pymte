@@ -67,6 +67,16 @@ the regression approach.
 The full user guide, a theory primer and the API reference are on
 [Read the Docs](https://pymte.readthedocs.io).
 
+## Contributing
+
+`pymte` is a new project and I would like it to grow with the people who
+use it. If you find a bug, want a feature, see a way to make something
+faster, or have an application that the package does not yet cover, open an
+issue or a pull request on GitHub. Small fixes, new examples, and
+documentation improvements are as welcome as new estimators. If you would
+prefer to talk first, or want to discuss a larger piece of work, email me
+at alex.ronczewski@gmail.com.
+
 ## Citing
 
 If you use this package, please cite the papers that developed the
@@ -92,3 +102,5 @@ derived from Angrist and Evans (1998), *American Economic Review* 88(3).
 GPL-3.0-or-later. This package is a derivative work of the R package `ivmte`
 (Copyright Joshua Shea and Alexander Torgovitsky), distributed under the same
 licence. See `LICENSE` for the full text.
+
+
