@@ -35,6 +35,16 @@ def test_predict_on_new_data(datasets):
     np.testing.assert_allclose(fit.predict(new), fit.phat[:10])
 
 
+def test_late_weights_warn_when_a_linear_score_is_clipped(datasets):
+    from pymte.wweights import wlate1
+
+    sim = datasets["sim"]
+    fit = propensity("d ~ z + x", sim, link="linear")
+    with pytest.warns(UserWarning, match="greater than 1 set to 1"):
+        w = wlate1(fit, sim, {"z": 30}, {"z": 300})
+    assert w.ub.max() == 1.0
+
+
 def test_supplied_column(datasets):
     sim = datasets["sim"].assign(p=0.5)
     prop = propensity("p", sim, treat="d")

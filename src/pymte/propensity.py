@@ -48,33 +48,38 @@ class Propensity:
         """Whether a model was fitted (as opposed to a supplied column)."""
         return self._spec is not None
 
-    def predict(self, data: pd.DataFrame) -> NDArray[np.float64]:
+    def predict(self, data: pd.DataFrame, clip: bool = True) -> NDArray[np.float64]:
         """Predict propensity scores for new data.
 
         Parameters
         ----------
         data : pandas.DataFrame
             Covariates and instruments used in the propensity formula.
+        clip : bool, default True
+            Clip the predictions to [0, 1] (only the linear link can leave
+            it).
 
         Returns
         -------
         numpy.ndarray
-            Predicted probabilities, clipped to [0, 1].
+            Predicted probabilities.
         """
         if self._spec is None or self.params is None:
             raise ValueError("Cannot predict from a propensity score supplied as a variable")
         x = np.asarray(self._spec.get_model_matrix(data), dtype=float)
-        return _inverse_link(x @ self.params, self.link)
+        return _inverse_link(x @ self.params, self.link, clip)
 
 
-def _inverse_link(index: NDArray[np.float64], link: str | None) -> NDArray[np.float64]:
+def _inverse_link(
+    index: NDArray[np.float64], link: str | None, clip: bool = True
+) -> NDArray[np.float64]:
     if link == "logit":
         out = 1.0 / (1.0 + np.exp(-index))
     elif link == "probit":
         out = norm.cdf(index)
     else:
         out = index
-    return np.asarray(np.clip(out, 0.0, 1.0), dtype=float)
+    return np.asarray(np.clip(out, 0.0, 1.0) if clip else out, dtype=float)
 
 
 def propensity(

@@ -14,6 +14,7 @@ the weights is done by :func:`pymte.mst.gen_target`.
 from __future__ import annotations
 
 import inspect
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -106,8 +107,13 @@ def wlate1(
         raise ValueError("Target parameters 'late' and 'avglate' require a propensity score model")
     n = len(data)
     rows = late_rows(data, late_x)
-    lb = prop.predict(data.assign(**late_from, **(late_x or {})))
-    ub = prop.predict(data.assign(**late_to, **(late_x or {})))
+    lb = prop.predict(data.assign(**late_from, **(late_x or {})), clip=False)
+    ub = prop.predict(data.assign(**late_to, **(late_x or {})), clip=False)
+    if (lb < 0).any() or (ub < 0).any():
+        warnings.warn("Propensity scores below 0 set to 0.", stacklevel=2)
+    if (lb > 1).any() or (ub > 1).any():
+        warnings.warn("Propensity scores greater than 1 set to 1.", stacklevel=2)
+    lb, ub = np.clip(lb, 0.0, 1.0), np.clip(ub, 0.0, 1.0)
     if avglate:
         mult = 1.0 / np.abs(ub - lb)
     else:
