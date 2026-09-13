@@ -6,29 +6,18 @@ kernelspec:
 
 # The audit procedure
 
-Shape restrictions are linear inequalities that must hold at every point
-$(u, x)$. Imposing them on a fine grid from the start makes the optimisation
-problems large, so the package follows the R implementation:
+Shape restrictions are linear inequalities that must hold at every point $(u, x)$. Imposing them on a fine grid from the start makes the optimisation problems large, so the package follows the R implementation:
 
 1. impose the restrictions on a small *initial grid*;
 2. solve for the minimum criterion and the bounds;
-3. check the restrictions at both bounding solutions on a finer *audit
-   grid*;
+3. check the restrictions at both bounding solutions on a finer *audit grid*;
 4. add the violated grid points to the constraint set and go back to step 2.
 
-The loop stops when no violations remain (the usual case after one to three
-rounds), after `audit_max` rounds, or when the same violations persist for
-three rounds.
+The loop stops when no violations remain (the usual case after one to three rounds), after `audit_max` rounds, or when the same violations persist for three rounds.
 
 ## Grid construction
 
-The grid in $u$ is the first `initgrid_nu` (`audit_nu`) points of the
-base-2 Halton sequence plus the end points 0 and 1, so it is deterministic
-and nested. The grid in the covariates is a sample of `initgrid_nx`
-(`audit_nx`) distinct covariate rows; when the data have fewer distinct
-rows, as in the examples, the whole support is used and the procedure is
-deterministic. Otherwise pass `seed` for reproducibility, or pass the grids
-explicitly with `initgrid_x`, `initgrid_u`, `audit_x`, `audit_u`.
+The grid in $u$ is the first `initgrid_nu` (`audit_nu`) points of the base-2 Halton sequence plus the end points 0 and 1, so it is deterministic and nested. The grid in the covariates is a sample of `initgrid_nx` (`audit_nx`) distinct covariate rows; when the data have fewer distinct rows, as in the examples, the whole support is used and the procedure is deterministic. Otherwise pass `seed` for reproducibility, or pass the grids explicitly with `initgrid_x`, `initgrid_u`, `audit_x`, `audit_u`.
 
 ```{code-cell} python
 from pymte.audit import rhalton
@@ -47,12 +36,7 @@ rhalton(5)
 | `audit_tol` | 1e-6 | violations smaller than this are ignored |
 | `criterion_tol` | 1e-4 | relative slack on the criterion in the bound problems |
 
-When more than `audit_add` points are violated, the worst violation in
-every (restriction, covariate cell) group is added first, then the second
-worst in every group, and so on. The limit applies to the total number of
-points added in a round. The R documentation describes `audit.add` as a
-limit per kind of restriction; the R code applies it to the total, and
-this package follows the code.
+When more than `audit_add` points are violated, the worst violation in every (restriction, covariate cell) group is added first, then the second worst in every group, and so on. The limit applies to the total number of points added in a round. The R documentation describes `audit.add` as a limit per kind of restriction; the R code applies it to the total, and this package follows the code.
 
 ## Diagnostics
 
@@ -71,8 +55,7 @@ r = pymte.ivmte(
 print("\n".join(r.messages))
 ```
 
-`r.audit` holds the number of rounds, the final constraint set, solver
-status codes and runtimes, and any violations left at termination:
+`r.audit` holds the number of rounds, the final constraint set, solver status codes and runtimes, and any violations left at termination:
 
 ```{code-cell} python
 r.audit.audit_count, r.audit.constraints.n, r.audit.status
@@ -80,16 +63,6 @@ r.audit.audit_count, r.audit.constraints.n, r.audit.status
 
 ## Infeasible problems
 
-If the restrictions cannot all be satisfied, the criterion problem is
-infeasible. The estimator then solves it again without the shape
-restrictions and the error names the restrictions that solution violates,
-marking the ones that came from the range of the outcome by default. The
-remedy is to relax those bounds or monotonicity restrictions.
+If the restrictions cannot all be satisfied, the criterion problem is infeasible. The estimator then solves it again without the shape restrictions and the error names the restrictions that solution violates, marking the ones that came from the range of the outcome by default. The remedy is to relax those bounds or monotonicity restrictions.
 
-A bound problem can also fail. As in R, the estimator retries up to three
-times on the same audit grid: on an unbounded, suboptimal or
-infeasible-or-unbounded status the initial grid grows by half (up to the
-audit grid), and on an infeasible, numerical or infeasible-or-unbounded
-status `criterion_tol` doubles (from zero it becomes 0.05). The moment
-approach retries on the first group of statuses only. The retries are
-logged in `messages`.
+A bound problem can also fail. As in R, the estimator retries up to three times on the same audit grid: on an unbounded, suboptimal or infeasible-or-unbounded status the initial grid grows by half (up to the audit grid), and on an infeasible, numerical or infeasible-or-unbounded status `criterion_tol` doubles (from zero it becomes 0.05). The moment approach retries on the first group of statuses only. The retries are logged in `messages`.

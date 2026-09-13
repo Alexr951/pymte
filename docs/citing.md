@@ -1,8 +1,6 @@
 # Citing
 
-`pymte` is a port of the R package `ivmte` by Joshua Shea and Alexander
-Torgovitsky (https://github.com/jkcshea/ivmte), released under the GPL-3.
-If you use it, please cite the methodological papers and the R package.
+`pymte` is a port of the R package `ivmte` by Joshua Shea and Alexander Torgovitsky (https://github.com/jkcshea/ivmte), released under the GPL-3. If you use it, please cite the methodological papers and the R package.
 
 ```bibtex
 @article{mogstad2018using,

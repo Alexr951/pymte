@@ -6,9 +6,7 @@ kernelspec:
 
 # Quickstart
 
-The introductory example of the R package uses the Angrist and Evans (1998)
-data: the effect of having a third child on whether the mother worked,
-instrumented by whether the first two children have the same sex.
+The introductory example of the R package uses the Angrist and Evans (1998) data: the effect of having a third child on whether the mother worked, instrumented by whether the first two children have the same sex.
 
 ```{code-cell} python
 import pymte
@@ -19,11 +17,7 @@ ae.head()
 
 ## A partially identified model
 
-We specify linear MTR functions in the unobservable $u$ with an additive
-year-of-birth effect, take as IV-like estimands the coefficients of an OLS
-regression of `worked` on `morekids`, `samesex` and their interaction, fit a
-logit propensity score, and ask for the average treatment effect on the
-treated.
+We specify linear MTR functions in the unobservable $u$ with an additive year-of-birth effect, take as IV-like estimands the coefficients of an OLS regression of `worked` on `morekids`, `samesex` and their interaction, fit a logit propensity score, and ask for the average treatment effect on the treated.
 
 ```{code-cell} python
 r = pymte.ivmte(
@@ -37,9 +31,7 @@ r = pymte.ivmte(
 r
 ```
 
-Four IV-like moments cannot pin down six MTR coefficients, so the result is
-a pair of bounds. They match the R package to seven digits. The result
-object carries everything the estimator computed:
+Four IV-like moments cannot pin down six MTR coefficients, so the result is a pair of bounds. They match the R package to seven digits. The result object carries everything the estimator computed:
 
 ```{code-cell} python
 r.bounds, r.moments, r.audit.audit_count
@@ -57,8 +49,7 @@ print("\n".join(r.messages))
 
 ## A point identified model
 
-With `m0 = m1 = "~ u"` the four moments identify the four coefficients, and
-the estimator switches to GMM:
+With `m0 = m1 = "~ u"` the four moments identify the four coefficients, and the estimator switches to GMM:
 
 ```{code-cell} python
 p = pymte.ivmte(
@@ -78,8 +69,7 @@ p.mtr_coef.round(5)
 
 ## The regression approach
 
-Naming the outcome fits the MTRs to its conditional means directly, with no
-IV-like estimands:
+Naming the outcome fits the MTRs to its conditional means directly, with no IV-like estimands:
 
 ```{code-cell} python
 q = pymte.ivmte(
@@ -93,6 +83,4 @@ q = pymte.ivmte(
 q.point_estimate
 ```
 
-The user guide covers each ingredient: {doc}`guide/mtr-specification`,
-{doc}`guide/target-parameters`, {doc}`guide/ivlike`,
-{doc}`guide/shape-restrictions` and {doc}`guide/audit`.
+The user guide covers each ingredient: {doc}`guide/mtr-specification`, {doc}`guide/target-parameters`, {doc}`guide/ivlike`, {doc}`guide/shape-restrictions` and {doc}`guide/audit`.

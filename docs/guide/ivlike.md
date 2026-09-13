@@ -6,22 +6,11 @@ kernelspec:
 
 # IV-like estimands
 
-The moment approach matches the MTR functions to *IV-like estimands*:
-coefficients of linear regressions of the outcome that can be written as
-$\beta_s = E[s(D, X, Z)\,Y]$ for a known weight $s$. Mogstad, Santos and
-Torgovitsky (2018, Proposition 1) show that each such coefficient is a
-linear function of the MTR coefficients, which yields the moment
-conditions the estimator uses. Adding estimands can only shrink the
-identified set; which ones to use is the researcher's choice, and is the
-main difference from the regression approach, which uses the whole
-conditional mean of the outcome.
+The moment approach matches the MTR functions to *IV-like estimands*: coefficients of linear regressions of the outcome that can be written as $\beta_s = E[s(D, X, Z)\,Y]$ for a known weight $s$. Mogstad, Santos and Torgovitsky (2018, Proposition 1) show that each such coefficient is a linear function of the MTR coefficients, which yields the moment conditions the estimator uses. Adding estimands can only shrink the identified set; which ones to use is the researcher's choice, and is the main difference from the regression approach, which uses the whole conditional mean of the outcome.
 
 ## Specifying regressions
 
-`ivlike` takes one formula or a list of formulas. Without a `|` the
-regression is estimated by OLS; the part after `|` lists the instruments
-for two-stage least squares (exogenous covariates must be repeated there,
-as in R):
+`ivlike` takes one formula or a list of formulas. Without a `|` the regression is estimated by OLS; the part after `|` lists the instruments for two-stage least squares (exogenous covariates must be repeated there, as in R):
 
 ```{code-cell} python
 import pymte
@@ -45,13 +34,7 @@ r = pymte.ivmte(
 r
 ```
 
-Every coefficient of every regression is a moment by default. A regressor
-that is collinear with the earlier ones is dropped, together with its
-coefficient, in the way R's `lm.fit` does; collinear instruments are
-dropped from the first stage. The number of linearly independent moments
-is reported and compared with the number of MTR coefficients to decide
-between point and partial identification. No variable may be named
-`intercept`, since that word names the constant in `components`.
+Every coefficient of every regression is a moment by default. A regressor that is collinear with the earlier ones is dropped, together with its coefficient, in the way R's `lm.fit` does; collinear instruments are dropped from the first stage. The number of linearly independent moments is reported and compared with the number of MTR coefficients to decide between point and partial identification. No variable may be named `intercept`, since that word names the constant in `components`.
 
 ```{code-cell} python
 r.ivlike.names, r.ivlike.beta.round(4)
@@ -59,10 +42,7 @@ r.ivlike.names, r.ivlike.beta.round(4)
 
 ## Selecting coefficients
 
-`components` names the coefficients to use from each regression, with
-`"intercept"` for the constant and `None` for all of them. A factor such as
-`"C(z)"` selects all of its level columns, and the factors of an
-interaction may be written in either order (`"d:C(z)"` or `"C(z):d"`):
+`components` names the coefficients to use from each regression, with `"intercept"` for the constant and `None` for all of them. A factor such as `"C(z)"` selects all of its level columns, and the factors of an interaction may be written in either order (`"d:C(z)"` or `"C(z):d"`):
 
 ```{code-cell} python
 pymte.ivmte(
@@ -75,9 +55,7 @@ pymte.ivmte(
 
 ## Estimating on subsamples
 
-`subset` gives one row-selection expression per regression, evaluated with
-:meth:`pandas.DataFrame.eval`; the corresponding moments then average over
-that subsample:
+`subset` gives one row-selection expression per regression, evaluated with :meth:`pandas.DataFrame.eval`; the corresponding moments then average over that subsample:
 
 ```{code-cell} python
 pymte.ivmte(
@@ -93,9 +71,7 @@ pymte.ivmte(
 
 ## The weights and moments
 
-The fitted regressions and their weights are available for inspection.
-Each moment's ``gamma0``/``gamma1`` rows are the integrals of the MTR bases
-against $s(0, X, Z)\,1\{u > p\}$ and $s(1, X, Z)\,1\{u \le p\}$:
+The fitted regressions and their weights are available for inspection. Each moment's ``gamma0``/``gamma1`` rows are the integrals of the MTR bases against $s(0, X, Z)\,1\{u > p\}$ and $s(1, X, Z)\,1\{u \le p\}$:
 
 ```{code-cell} python
 import pandas as pd

@@ -1,10 +1,6 @@
 # Migrating from the R package
 
-`pymte.ivmte()` takes the same arguments as `ivmte::ivmte()` with dots
-replaced by underscores. Formulas are strings, R vectors become Python
-lists or dicts, and results are attributes of the returned object instead
-of list elements. Numerical results agree with the R package to the
-tolerances documented in the test suite.
+`pymte.ivmte()` takes the same arguments as `ivmte::ivmte()` with dots replaced by underscores. Formulas are strings, R vectors become Python lists or dicts, and results are attributes of the returned object instead of list elements. Numerical results agree with the R package to the tolerances documented in the test suite.
 
 ## Formulas
 
@@ -48,10 +44,7 @@ tolerances documented in the test suite.
 | `noisy` | `noisy` |
 | (R's global RNG) | `seed` |
 
-Not available: `direct` other than the default least squares, `soft`,
-`rescale`, `debug`, `smallreturnlist`, the deprecated `lpsolver*` arguments,
-the CPLEX backend, separate lower and upper values of `criterion_tol`, and
-R's fallback of building a propensity formula when none is passed.
+Not available: `direct` other than the default least squares, `soft`, `rescale`, `debug`, `smallreturnlist`, the deprecated `lpsolver*` arguments, the CPLEX backend, separate lower and upper values of `criterion_tol`, and R's fallback of building a propensity formula when none is passed.
 
 ## Results
 
@@ -73,15 +66,11 @@ R's fallback of building a propensity formula when none is passed.
 | `r$point.estimate.ci`, `r$j.test` | `r.point_estimate_ci`, `r.j_test` |
 | `summary(r)`, `print(r)` | `r.summary()`, `print(r)` |
 
-Coefficient names carry the `[m0]`/`[m1]` prefixes of the R package.
-Spline coefficients are named `uS{j}.{b}:{interaction}` (R: `u0S{j}.{b}`).
+Coefficient names carry the `[m0]`/`[m1]` prefixes of the R package. Spline coefficients are named `uS{j}.{b}:{interaction}` (R: `u0S{j}.{b}`).
 
 ## Modules and functions
 
-The package follows the file layout of the R package, with function names
-in snake case. Internal helpers that only exist because of R (`l()`,
-`modcall`, the `lists.R` and `callcheck.R` argument parsers, the solver
-option translators) have no counterpart.
+The package follows the file layout of the R package, with function names in snake case. Internal helpers that only exist because of R (`l()`, `modcall`, the `lists.R` and `callcheck.R` argument parsers, the solver option translators) have no counterpart.
 
 | R file | Python module | R function | Python |
 |---|---|---|---|
@@ -103,61 +92,19 @@ option translators) have no counterpart.
 
 ## Behavioural differences
 
-- **LATE.** R redefined `late` in July 2022; the R vignette's LATE numbers
-  use the earlier pointwise weights, which both R and this package now call
-  `avglate`.
-- **Grids.** The covariate grid is sampled with NumPy's generator (`seed`),
-  R uses its own. Results agree when the whole covariate support fits in
-  `audit_nx`, which is the case in the examples; otherwise pass explicit
-  grids to compare implementations.
-- **Audit rounds.** The number of rounds depends on which optimal vertex
-  the solver returns and can differ between solvers; the bounds agree.
-- **Regression approach.** Point identified regressions run without a
-  commercial solver. The quadratically constrained bounds use Clarabel.
-- **Bootstrap grids.** Replicates reuse both the audit grid and the
-  initial constraint grid of the sample; R re-samples the initial grid.
-- **Spline intercept.** As in the current R source (and unlike CRAN 1.4.0),
-  `uSplines` drops the first basis function unless `intercept=True`.
-- **Redundant moments.** GMM drops collinear moment conditions by testing a
-  random vector, as R does, but draws that vector from a fixed generator
-  (R uses the global stream) and removes the moment loading on the smallest
-  near-zero eigenvalue (R takes the largest). When the null space has more
-  than one dimension the two can drop different moments; the estimate is
-  the same.
-- **Bootstrap J test.** The degrees of freedom of a replicate's J statistic
-  are always net of the dropped moments; R subtracts them on the original
-  sample only.
-- **Bootstrap retries.** A resample that fails to estimate is redrawn at
-  most ten times per requested replicate, after which an error is raised;
-  R retries without limit.
-- **Printing.** `summary()` reports the region named by `ci_type` (R's
-  `summary.ivmte` always prints the backward region), `print(r)` shows the
-  full summary (R's `print` is shorter), and nothing is printed unless
-  `noisy=True` (R prints a bootstrap summary regardless).
-- **Audit grids.** The end points 0 and 1 are always added to a custom
-  `audit_u` (R adds them only when `initgrid_u` is given too), and the
-  check that the initial grid equals the audit grid compares the grids
-  actually used, where R compares the requested sizes. R drops grid points whose
-  MTR basis rows coincide before building the constraints, deduplicates
-  bound rows on `m0` and `m1` separately and never deduplicates `mte`
-  rows; `pymte` builds every grid point and removes duplicate rows of any
-  kind (compared to 12 decimals). The constraint sets are equivalent.
-- **Violation ranking.** When more than `audit_add` violations are found,
-  both packages add the worst violation of each restriction and covariate
-  cell first. R orders the cells alphabetically by their label, which
-  reorders cells 10 and above; `pymte` orders them numerically.
-- **MTR formulas.** The unobservable must enter as `u` or `I(u**k)` with a
-  literal integer `k`, or through `uSplines`; anything else is an error,
-  where R silently reads the term as a plain `u` term. Interactions of a
-  spline with several covariates keep the order of the formula (R sorts
-  them alphabetically). The same spline specification used twice forms one
-  block, as in R.
-- **Regression criterion.** `qp_setup` compresses the least-squares
-  criterion through the eigenvalues of `X'X/n` and drops the directions
-  with a zero eigenvalue; R passes the full matrix to the solver. Identical
-  for a full-rank design.
-- **Supplied propensity scores.** `avglate` is refused with a supplied
-  score column, like `late` (R refuses `late` only and fails later).
-- **Test populations.** `pymte.testdata` rounds the population multipliers
-  to the nearest integer where R truncates; the shipped fixtures show the
-  populations are identical row for row.
+- **LATE.** R redefined `late` in July 2022; the R vignette's LATE numbers use the earlier pointwise weights, which both R and this package now call `avglate`.
+- **Grids.** The covariate grid is sampled with NumPy's generator (`seed`), R uses its own. Results agree when the whole covariate support fits in `audit_nx`, which is the case in the examples; otherwise pass explicit grids to compare implementations.
+- **Audit rounds.** The number of rounds depends on which optimal vertex the solver returns and can differ between solvers; the bounds agree.
+- **Regression approach.** Point identified regressions run without a commercial solver. The quadratically constrained bounds use Clarabel.
+- **Bootstrap grids.** Replicates reuse both the audit grid and the initial constraint grid of the sample; R re-samples the initial grid.
+- **Spline intercept.** As in the current R source (and unlike CRAN 1.4.0), `uSplines` drops the first basis function unless `intercept=True`.
+- **Redundant moments.** GMM drops collinear moment conditions by testing a random vector, as R does, but draws that vector from a fixed generator (R uses the global stream) and removes the moment loading on the smallest near-zero eigenvalue (R takes the largest). When the null space has more than one dimension the two can drop different moments; the estimate is the same.
+- **Bootstrap J test.** The degrees of freedom of a replicate's J statistic are always net of the dropped moments; R subtracts them on the original sample only.
+- **Bootstrap retries.** A resample that fails to estimate is redrawn at most ten times per requested replicate, after which an error is raised; R retries without limit.
+- **Printing.** `summary()` reports the region named by `ci_type` (R's `summary.ivmte` always prints the backward region), `print(r)` shows the full summary (R's `print` is shorter), and nothing is printed unless `noisy=True` (R prints a bootstrap summary regardless).
+- **Audit grids.** The end points 0 and 1 are always added to a custom `audit_u` (R adds them only when `initgrid_u` is given too), and the check that the initial grid equals the audit grid compares the grids actually used, where R compares the requested sizes. R drops grid points whose MTR basis rows coincide before building the constraints, deduplicates bound rows on `m0` and `m1` separately and never deduplicates `mte` rows; `pymte` builds every grid point and removes duplicate rows of any kind (compared to 12 decimals). The constraint sets are equivalent.
+- **Violation ranking.** When more than `audit_add` violations are found, both packages add the worst violation of each restriction and covariate cell first. R orders the cells alphabetically by their label, which reorders cells 10 and above; `pymte` orders them numerically.
+- **MTR formulas.** The unobservable must enter as `u` or `I(u**k)` with a literal integer `k`, or through `uSplines`; anything else is an error, where R silently reads the term as a plain `u` term. Interactions of a spline with several covariates keep the order of the formula (R sorts them alphabetically). The same spline specification used twice forms one block, as in R.
+- **Regression criterion.** `qp_setup` compresses the least-squares criterion through the eigenvalues of `X'X/n` and drops the directions with a zero eigenvalue; R passes the full matrix to the solver. Identical for a full-rank design.
+- **Supplied propensity scores.** `avglate` is refused with a supplied score column, like `late` (R refuses `late` only and fails later).
+- **Test populations.** `pymte.testdata` rounds the population multipliers to the nearest integer where R truncates; the shipped fixtures show the populations are identical row for row.

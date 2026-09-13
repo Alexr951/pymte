@@ -1,9 +1,6 @@
 # API reference
 
-The modules and functions follow the R package: `mst` holds the estimator,
-`mtr` the MTR specifications, `wweights` and `sweights` the target and
-IV-like weights, `lp` the optimisation problems, `monobound` the shape
-restrictions and `audit` the audit procedure.
+The modules and functions follow the R package: `mst` holds the estimator, `mtr` the MTR specifications, `wweights` and `sweights` the target and IV-like weights, `lp` the optimisation problems, `monobound` the shape restrictions and `audit` the audit procedure.
 
 ## Estimation
 
@@ -50,8 +47,7 @@ restrictions and `audit` the audit procedure.
 
 ## Building blocks
 
-The estimator is assembled from the following functions, which can be used
-on their own. The names are those of the R package in snake case.
+The estimator is assembled from the following functions, which can be used on their own. The names are those of the R package in snake case.
 
 ```{eval-rst}
 .. currentmodule:: pymte
@@ -103,8 +99,7 @@ on their own. The names are those of the R package in snake case.
 
 ## Test data
 
-The synthetic populations of the R package's test suite, for experiments
-and for the tests in `tests/`.
+The synthetic populations of the R package's test suite, for experiments and for the tests in `tests/`.
 
 ```{eval-rst}
 .. autosummary::

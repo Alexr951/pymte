@@ -8,13 +8,7 @@ kernelspec:
 
 ## Basis convention
 
-`uSplines(degree, knots, intercept=False)` builds a B-spline basis on
-$[0, 1]$ with boundary knots fixed at 0 and 1. With $K$ interior knots the
-basis has `degree + K + 1` functions; unless `intercept=True` the first one
-is dropped, leaving `degree + K` columns. This matches `splines2::bSpline`
-and `splines2::ibs` in R, which the R package uses, so spline coefficients
-carry the same meaning in both implementations. Knots at or outside the
-boundaries are ignored.
+`uSplines(degree, knots, intercept=False)` builds a B-spline basis on $[0, 1]$ with boundary knots fixed at 0 and 1. With $K$ interior knots the basis has `degree + K + 1` functions; unless `intercept=True` the first one is dropped, leaving `degree + K` columns. This matches `splines2::bSpline` and `splines2::ibs` in R, which the R package uses, so spline coefficients carry the same meaning in both implementations. Knots at or outside the boundaries are ignored.
 
 ```{code-cell} python
 import numpy as np
@@ -31,14 +25,11 @@ for ax, sp in zip(axes, [USpline(0, [0.25, 0.5, 0.75], intercept=True), USpline(
 plt.tight_layout()
 ```
 
-Degree 0 gives piecewise constants, which together with `intercept=True`
-is the natural nonparametric specification for a step function in $u$.
+Degree 0 gives piecewise constants, which together with `intercept=True` is the natural nonparametric specification for a step function in $u$.
 
 ## Exact integrals
 
-All moments in the estimator are integrals of the MTR against a weight in
-$u$. For spline terms these are obtained from the antiderivative of the
-basis, so no numerical quadrature is involved:
+All moments in the estimator are integrals of the MTR against a weight in $u$. For spline terms these are obtained from the antiderivative of the basis, so no numerical quadrature is involved:
 
 ```{code-cell} python
 sp = USpline(2, [0.3, 0.6])
@@ -49,12 +40,7 @@ sp.integral(lb=0.0, ub=1.0)
 
 ## Coefficient names
 
-Spline coefficients are named `uS{j}.{b}:{interaction}`: `j` indexes the
-distinct spline specifications in the formula in order of appearance (main
-effects before interactions), `b` is the basis function (1-based), and the
-interaction is the covariate column the basis is multiplied by, or `1` for
-none. The R package uses the same scheme with an additional arm prefix
-(`u0S1.2:yob`); in results the arm appears as `[m0]`/`[m1]` instead.
+Spline coefficients are named `uS{j}.{b}:{interaction}`: `j` indexes the distinct spline specifications in the formula in order of appearance (main effects before interactions), `b` is the basis function (1-based), and the interaction is the covariate column the basis is multiplied by, or `1` for none. The R package uses the same scheme with an additional arm prefix (`u0S1.2:yob`); in results the arm appears as `[m0]`/`[m1]` instead.
 
 ```{code-cell} python
 import pymte

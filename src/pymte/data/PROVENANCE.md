@@ -1,14 +1,10 @@
 # Data provenance
 
-Both files are exported unchanged (`write.csv(..., row.names = FALSE)`, then
-gzip) from version 1.4.0 of the R package `ivmte`
-(https://github.com/jkcshea/ivmte, GPL-3).
+Both files are exported unchanged (`write.csv(..., row.names = FALSE)`, then gzip) from version 1.4.0 of the R package `ivmte` (https://github.com/jkcshea/ivmte, GPL-3).
 
 ## ae.csv.gz
 
-`AE` in the R package: a subsample of the 1980 Census extract used by Angrist
-and Evans (1998, *American Economic Review* 88(3), 450-477), restricted to
-women who were at least 20 at first birth and to eight columns:
+`AE` in the R package: a subsample of the 1980 Census extract used by Angrist and Evans (1998, *American Economic Review* 88(3), 450-477), restricted to women who were at least 20 at first birth and to eight columns:
 
 | column     | meaning                                                          |
 |------------|------------------------------------------------------------------|
@@ -21,15 +17,11 @@ women who were at least 20 at first birth and to eight columns:
 | `hisp`     | mother is Hispanic                                               |
 | `other`    | mother is neither Black nor Hispanic                             |
 
-The R package built it with `inst/extdata/AE.R`, starting from the cleaned
-file distributed by Ivan Fernandez-Val
-(http://sites.bu.edu/ivanf/files/2014/03/m_d_806.dta_.zip).
+The R package built it with `inst/extdata/AE.R`, starting from the cleaned file distributed by Ivan Fernandez-Val (http://sites.bu.edu/ivanf/files/2014/03/m_d_806.dta_.zip).
 
 ## ivmte_sim_data.csv.gz
 
-`ivmteSimData` in the R package, generated in R by the following code
-(`inst/extdata/ivmteSimData.R`). We do not re-simulate it in Python because
-R and NumPy random streams differ.
+`ivmteSimData` in the R package, generated in R by the following code (`inst/extdata/ivmteSimData.R`). We do not re-simulate it in Python because R and NumPy random streams differ.
 
 ```r
 set.seed(1)
