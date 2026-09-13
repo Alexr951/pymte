@@ -1,6 +1,6 @@
 # pymte
 
-[![PyPI](https://img.shields.io/pypi/v/pymte.svg)](https://pypi.org/project/pymte/) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22739131.svg)](https://doi.org/10.5281/zenodo.22739131) [![Documentation](https://readthedocs.org/projects/pymte/badge/?version=stable)](https://pymte.readthedocs.io/en/stable/)
+[![PyPI](https://img.shields.io/pypi/v/pymte.svg)](https://pypi.org/project/pymte/) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22739131.svg)](https://doi.org/10.5281/zenodo.22739131) [![CI](https://github.com/Alexr951/pymte/actions/workflows/ci.yml/badge.svg)](https://github.com/Alexr951/pymte/actions/workflows/ci.yml)
 
 Instrumental variables and marginal treatment effects in Python.
 
