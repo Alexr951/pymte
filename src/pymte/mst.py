@@ -816,10 +816,24 @@ class IVMTEResult:
 
 # -- one estimation pass ---------------------------------------------------------------
 
-_SHAPE = (
-    "m0_lb", "m0_ub", "m1_lb", "m1_ub", "mte_lb", "mte_ub",
-    "m0_inc", "m0_dec", "m1_inc", "m1_dec", "mte_inc", "mte_dec",
+_BOUNDS = ("m0_lb", "m0_ub", "m1_lb", "m1_ub", "mte_lb", "mte_ub")
+_MONO = ("m0_inc", "m0_dec", "m1_inc", "m1_dec", "mte_inc", "mte_dec")
+_AUDIT_ARGS = (
+    "audit_nu", "audit_nx", "audit_add", "initgrid_nu", "initgrid_nx", "audit_max", "audit_tol",
 )  # fmt: skip
+
+
+def _shape_given(o: SimpleNamespace) -> bool:
+    """Whether any bound or monotonicity restriction was passed."""
+    return any(getattr(o, k) is not None for k in _BOUNDS) or any(getattr(o, k) for k in _MONO)
+
+
+def _audit_args_given(o: SimpleNamespace) -> bool:
+    """Whether any monotonicity restriction or audit setting differs from its default."""
+    defaults = ivmte.__kwdefaults__ or {}
+    return any(getattr(o, k) for k in _MONO) or any(
+        getattr(o, k) != defaults[k] for k in _AUDIT_ARGS
+    )
 
 
 @dataclass
@@ -842,14 +856,18 @@ class _Model:
     def n(self) -> int:
         return len(self.data)
 
-    def restrictions(self, o: SimpleNamespace) -> dict[str, Any]:
-        """Shape restrictions with the R defaults (MTR bounds from the outcome range)."""
-        r = {k: getattr(o, k) for k in _SHAPE}
-        for key in ("m0_lb", "m1_lb"):
-            r[key] = float(np.min(self.y)) if r[key] is None else r[key]
-        for key in ("m0_ub", "m1_ub"):
-            r[key] = float(np.max(self.y)) if r[key] is None else r[key]
-        return r
+    def restrictions(self, o: SimpleNamespace) -> tuple[dict[str, Any], tuple[str, ...]]:
+        """Shape restrictions with the R defaults (MTR bounds from the outcome range).
+
+        Returns the restrictions and the keys that were filled in by default.
+        """
+        r = {k: getattr(o, k) for k in _BOUNDS + _MONO}
+        defaults = []
+        for key in ("m0_lb", "m1_lb", "m0_ub", "m1_ub"):
+            if r[key] is None:
+                r[key] = float(np.min(self.y) if key.endswith("lb") else np.max(self.y))
+                defaults.append(key)
+        return r, tuple(defaults)
 
     def criterion(self) -> Criterion:
         if self.moments is not None:
@@ -956,7 +974,7 @@ def ivmte_estimate(
             and len(model.prop.params) != len(orig.model.prop.params)
         ):
             raise BootstrapRetry("a factor level is missing from the resample")
-    shape_given = any(getattr(o, k) for k in _SHAPE)
+    shape_given = _shape_given(o)
     point = orig.point if boot and orig is not None else o.point
     fit: GMMResult | None = None
     if model.moments is not None:
@@ -983,7 +1001,7 @@ def ivmte_estimate(
                     if shape_given or model.equal is not None:
                         msg += " Shape constraints are ignored."
                     warnings.warn(msg, stacklevel=3)
-            elif point and shape_given:
+            elif point and _audit_args_given(o):
                 warnings.warn(
                     "If 'point' is True, shape restrictions on m0 and m1 are ignored and the "
                     "audit procedure is not implemented.",
@@ -1008,12 +1026,16 @@ def ivmte_estimate(
             full_rank = np.linalg.matrix_rank(model.x_reg) == model.x_reg.shape[1]
             # As in R, a collinear design falls through to the bounds even
             # when point identification was requested.
-            point = full_rank if point is None else point and full_rank
-            if point:
-                msg = "MTR is point identified via linear regression."
-                if shape_given:
-                    msg += " Shape constraints are ignored."
-                warnings.warn(msg, stacklevel=3)
+            detected = point is None
+            point = full_rank if detected else point and full_rank
+            if point and shape_given:
+                warnings.warn(
+                    "MTR is point identified via linear regression. Shape constraints are "
+                    "ignored.",
+                    stacklevel=3,
+                )
+            if point and detected:
+                warnings.warn("MTR is point identified via linear regression.", stacklevel=3)
         if point:
             method = "ols"
             theta = _least_squares(model.x_reg, model.y, model.equal)
@@ -1027,8 +1049,9 @@ def ivmte_estimate(
     # -- partial identification -----------------------------------------------------
     solver = o.solver or default_solver(qcqp=method == "qcqp")
     crit = model.criterion()
-    restrictions = model.restrictions(o)
+    restrictions, defaults = model.restrictions(o)
     kw: dict[str, Any] = {
+        "defaults": defaults,
         "equal": model.equal, "criterion_tol": o.criterion_tol, "audit_tol": o.audit_tol,
         "audit_add": o.audit_add, "audit_max": o.audit_max, "audit_nx": o.audit_nx, "audit_nu": o.audit_nu,
         "initgrid_x": o.initgrid_x, "initgrid_u": o.initgrid_u, "audit_x": o.audit_x, "audit_u": o.audit_u,
@@ -1059,9 +1082,15 @@ def ivmte_estimate(
         return est
     log.append("Performing audit procedure...")
     log.append(f"    Solver: {solver}")
-    # The R package retries up to three times with an initial grid 1.5 times
-    # larger when a bound problem reports an unbounded or suboptimal status.
+    # As in R, a failed bound problem is retried up to three times on the
+    # same audit grid: the initial grid grows by half (up to the audit grid)
+    # on an infeasible-or-unbounded, unbounded or suboptimal status, and
+    # criterion_tol doubles (or becomes 0.05) on an infeasible,
+    # infeasible-or-unbounded or numerical status. The moment approach only
+    # retries on the first group; a failed criterion problem is not retried.
     nx, nu = o.initgrid_nx, o.initgrid_nu
+    retry = (3, 4, 6) if method == "lp" else (2, 3, 4, 5, 6)
+    has_x = bool(model.spec0.covariates or model.spec1.covariates)
     for attempt in range(4):
         try:
             res = audit(
@@ -1070,13 +1099,20 @@ def ivmte_estimate(
             )  # fmt: skip
             return _Estimate(model, False, method, solver, audit=res)
         except AuditError as err:
-            if err.status not in (3, 4, 6) or attempt == 3:
+            if err.stage != "bound" or err.status not in retry or attempt == 3:
                 raise
-            nx = min(int(np.ceil(nx * 1.5)), o.audit_nx)
-            nu = min(int(np.ceil(nu * 1.5)), o.audit_nu)
             log.append("    Restarting audit with new settings:")
-            log.append(f"    initgrid_nx = {nx}")
-            log.append(f"    initgrid_nu = {nu}")
+            if err.status in (3, 4, 6):
+                assert err.grids is not None
+                kw["audit_x"], kw["audit_u"] = err.grids.support, err.grids.audit_u
+                if has_x:
+                    nx = min(int(np.ceil(nx * 1.5)), o.audit_nx)
+                    log.append(f"    initgrid_nx = {nx}")
+                nu = min(int(np.ceil(nu * 1.5)), o.audit_nu)
+                log.append(f"    initgrid_nu = {nu}")
+            if err.status in (2, 3, 5):
+                kw["criterion_tol"] = 2 * kw["criterion_tol"] if kw["criterion_tol"] > 0 else 0.05
+                log.append(f"    criterion_tol = {kw['criterion_tol']}")
     raise AssertionError("unreachable")
 
 
