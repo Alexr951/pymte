@@ -17,6 +17,11 @@ def test_ivlike_formulas_must_share_the_outcome(sim):
         pymte.ivmte(sim, **{**SIM, "ivlike": ["y ~ d + z", "d ~ z"]})
 
 
+def test_no_variable_may_be_called_intercept(sim):
+    with pytest.raises(ValueError, match="named 'intercept'"):
+        pymte.ivmte(sim.assign(intercept=1), **{**SIM, "ivlike": "y ~ d + z + intercept"})
+
+
 def test_treatment_cannot_enter_the_mtrs(sim):
     with pytest.raises(ValueError, match="Treatment variable cannot be included in the MTRs"):
         pymte.ivmte(sim, **{**SIM, "m0": "~ u + d"})

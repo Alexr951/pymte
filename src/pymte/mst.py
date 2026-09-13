@@ -1358,6 +1358,11 @@ def ivmte(
                 )
     if len({get_xz(f)[0] for f in ivlike_list}) > 1:
         raise ValueError("Multiple response variables specified in the IV-like specifications")
+    if any("intercept" in formula_vars(f) for f in ivlike_list):
+        raise ValueError(
+            "Regression specifications cannot include variables named 'intercept'. "
+            "Please rename that variable."
+        )
     mtr_vars: set[str] = set()
     for m in (m0, m1):
         mtr_vars |= formula_vars(m) if isinstance(m, str) else {c for _, c in m if c}
