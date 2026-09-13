@@ -23,6 +23,19 @@ html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
 html_title = "pymte documentation"
 html_favicon = "_static/favicon.svg"
+# Only the user guide has enough sibling pages to need the section
+# navigation in the left sidebar.
+html_sidebars = {
+    "guide/*": ["sidebar-nav-bs"],
+    "generated/*": [],
+    **{
+        page: []
+        for page in (
+            "index", "installation", "quickstart", "theory", "api", "migration", "datasets",
+            "faq", "citing",
+        )
+    },
+}  # fmt: skip
 html_theme_options = {
     "github_url": "https://github.com/alexr951/pymte",
     "navigation_with_keys": False,

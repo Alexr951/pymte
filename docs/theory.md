@@ -141,9 +141,9 @@ $$
 $$
 
 and compute bounds over the coefficients whose criterion is within a
-tolerance of $\hat Q$. MST (equation 27) add a tolerance $\kappa_n$ to the
-minimum; the R package and this package use the relative form of Shea and
-Torgovitsky (2023, equation 20), $\sum_s |\hat\Gamma_s \theta - \hat\beta_s| \le (1 + \sigma)\hat Q$
+tolerance of $\hat Q$. MST add a tolerance $\kappa_n$ to the minimum; the
+R package and this package use the relative form of Shea and Torgovitsky
+(2023), $\sum_s |\hat\Gamma_s \theta - \hat\beta_s| \le (1 + \sigma)\hat Q$
 with $\sigma$ given by `criterion_tol`. Both problems are linear programs.
 MST give conditions under which the resulting interval is a consistent
 estimate of the identified set; the tolerance is part of that argument,
