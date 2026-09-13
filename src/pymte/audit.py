@@ -4,10 +4,11 @@ Shape restrictions are first imposed on a small initial grid. After solving
 for the bounds, the restrictions are checked on the finer audit grid; grid
 points where either bounding solution violates a restriction are added to
 the constraint set and the problem is solved again, until no violations
-remain or ``audit_max`` rounds have been performed. This follows the R
-package closely, including the construction of the grids, the rules for
-selecting which violations to add and for terminating when the audit cannot
-make progress.
+remain or ``audit_max`` rounds have been performed. The grids, the rule for
+choosing which violations to add and the termination rules follow the R
+package; the few places where the two differ (the end points of a custom
+``audit_u``, the full-grid test, and the ranking of violations when
+``audit_add`` binds) are listed in the migration notes.
 """
 
 from __future__ import annotations
@@ -398,8 +399,9 @@ def audit(
     initgrid_nx, initgrid_nu, audit_nx, audit_nu : int
         Sizes of the initial constraint grid and the audit grid.
     initgrid_x, initgrid_u, audit_x, audit_u : optional
-        Explicit grids overriding the sampled ones; 0 and 1 are always part
-        of the ``u`` grids.
+        Explicit grids overriding the sampled ones. The end points 0 and 1
+        are always added to the ``u`` grids (R adds them to a custom
+        ``audit_u`` only when ``initgrid_u`` is given as well).
     audit_grid : Grids, optional
         Reuse these grids instead of drawing new ones (bootstrap replicates).
     rng : numpy.random.Generator, optional

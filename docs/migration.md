@@ -86,14 +86,14 @@ option translators) have no counterpart.
 | R file | Python module | R function | Python |
 |---|---|---|---|
 | `mst.R` | `pymte.mst` | `ivmte`, `ivmteEstimate`, `genTarget`, `genSSet`, `gmmEstimate`, `momentMatrix`, `boundCI`, `boundPvalue`, `print`/`summary` | `ivmte`, `ivmte_estimate`, `gen_target`, `gen_s_set`, `gmm_estimate`, `moment_matrix`, `bound_ci`, `bound_pvalue`, `IVMTEResult.summary()` |
-| `mtr.R` | `pymte.mtr` | `polyparse`, `genGamma`, `genGammaSplines` | `polyparse`, `gen_gamma`, `gen_gamma_splines` (the parsed formula is an `MTRSpec`) |
+| `mtr.R` | `pymte.mtr` | `polyparse`, `genGamma`, `genGammaSplines`, `removeSplines`, `interactSplines` | `polyparse`, `gen_gamma`, `gen_gamma_splines` (the parsed formula is an `MTRSpec`; `removeSplines` and `interactSplines` are absorbed into `polyparse`, and `gen_gamma_splines` leaves the subset, multiplier and averaging to `gen_gamma`) |
 | `splines.R` | `pymte.splines` | `splinesBasis` and `splines2` calls | `USpline.basis()`, `USpline.integral()` |
 | `wweights.R` | `pymte.wweights` | `wate1`, `watt1`, `watu1`, `wlate1`, `wgenlate1`, `genWeight` | same names, `gen_weight` |
 | `sweights.R` | `pymte.sweights` | `olsj`, `tsls` | `olsj`, `tsls` |
-| `ivlike.R` | `pymte.ivlike` | `ivEstimate`, `piv` | `iv_estimate`, `piv` |
+| `ivlike.R` | `pymte.ivlike` | `ivEstimate`, `piv` | `iv_estimate`, `piv`, `independent_columns` (the collinearity rule of `lm.fit`) |
 | `design.R` | `pymte.design` | `design` | `design` |
 | `propensity.R` | `pymte.propensity` | `propensity` | `propensity` |
-| `lp.R` | `pymte.lp` | `lpSetup`, `lpSetupEqualCoef`, `lpSetupCriterion`, `lpSetupBound`, `lpSetupCriterionBoot`, `criterionMin`, `bound`, `qpSetup`, `qpSetupCriterion`, `qpSetupBound`, `runGurobi`, `runMosek`, `runLpSolveAPI` | `lp_setup`, `lp_setup_equal_coef`, `lp_setup_criterion`, `lp_setup_bound`, `lp_setup_criterion_boot`, `criterion_min`, `bound`, `qp_setup`, `qp_setup_criterion`, `qp_setup_bound`, `run_highs`, `run_cvxpy` (through `run_lp` and `run_qcqp`) |
+| `lp.R` | `pymte.lp` | `lpSetup`, `lpSetupEqualCoef`, `lpSetupCriterion`, `lpSetupBound`, `lpSetupCriterionBoot`, `lpSetupInfeasible`, `criterionMin`, `bound`, `qpSetup`, `qpSetupCriterion`, `qpSetupBound`, `qpSetupInfeasible`, `runGurobi`, `runMosek`, `runLpSolveAPI` | `lp_setup`, `lp_setup_equal_coef`, `lp_setup_criterion`, `lp_setup_bound`, `lp_setup_criterion_boot`, `criterion_min`, `bound`, `qp_setup`, `qp_setup_criterion`, `qp_setup_bound`, `run_highs`, `run_cvxpy` (through `run_lp` and `run_qcqp`); the `*Infeasible` helpers are `lp_setup` called without shape restrictions |
 | `monobound.R` | `pymte.monobound` | `gengrid`, `genboundA`, `genmonoA`, `combinemonobound`, `genmonoboundA` | `gengrid`, `genbound_a`, `genmono_a`, `combinemonobound`, `genmonobound_a` |
 | `audit.R` | `pymte.audit` | `audit`, `selectViolations`, `rhalton`, `statusString` | `audit`, `select_violations`, `rhalton`, `status_string` |
 | `testdata.R` | `pymte.testdata` | `gendistBasic`, `gendistCovariates`, `gendistSplines`, `gendistMosquito` | `gendist_basic`, `gendist_covariates`, `gendist_splines`, `gendist_mosquito` |
@@ -118,3 +118,46 @@ option translators) have no counterpart.
   initial constraint grid of the sample; R re-samples the initial grid.
 - **Spline intercept.** As in the current R source (and unlike CRAN 1.4.0),
   `uSplines` drops the first basis function unless `intercept=True`.
+- **Redundant moments.** GMM drops collinear moment conditions by testing a
+  random vector, as R does, but draws that vector from a fixed generator
+  (R uses the global stream) and removes the moment loading on the smallest
+  near-zero eigenvalue (R takes the largest). When the null space has more
+  than one dimension the two can drop different moments; the estimate is
+  the same.
+- **Bootstrap J test.** The degrees of freedom of a replicate's J statistic
+  are always net of the dropped moments; R subtracts them on the original
+  sample only.
+- **Bootstrap retries.** A resample that fails to estimate is redrawn at
+  most ten times per requested replicate, after which an error is raised;
+  R retries without limit.
+- **Printing.** `summary()` reports the region named by `ci_type` (R's
+  `summary.ivmte` always prints the backward region), `print(r)` shows the
+  full summary (R's `print` is shorter), and nothing is printed unless
+  `noisy=True` (R prints a bootstrap summary regardless).
+- **Audit grids.** The end points 0 and 1 are always added to a custom
+  `audit_u` (R adds them only when `initgrid_u` is given too), and the
+  check that the initial grid equals the audit grid compares the grids
+  actually used rather than the requested sizes. R drops grid points whose
+  MTR basis rows coincide before building the constraints, deduplicates
+  bound rows on `m0` and `m1` separately and never deduplicates `mte`
+  rows; `pymte` builds every grid point and removes duplicate rows of any
+  kind (compared to 12 decimals). The constraint sets are equivalent.
+- **Violation ranking.** When more than `audit_add` violations are found,
+  both packages add the worst violation of each restriction and covariate
+  cell first. R orders the cells alphabetically by their label, which
+  reorders cells 10 and above; `pymte` orders them numerically.
+- **MTR formulas.** The unobservable must enter as `u` or `I(u**k)` with a
+  literal integer `k`, or through `uSplines`; anything else is an error,
+  where R silently reads the term as a plain `u` term. Interactions of a
+  spline with several covariates keep the order of the formula (R sorts
+  them alphabetically). The same spline specification used twice forms one
+  block, as in R.
+- **Regression criterion.** `qp_setup` compresses the least-squares
+  criterion through the eigenvalues of `X'X/n` and drops the directions
+  with a zero eigenvalue; R passes the full matrix to the solver. Identical
+  for a full-rank design.
+- **Supplied propensity scores.** `avglate` is refused with a supplied
+  score column, like `late` (R refuses `late` only and fails later).
+- **Test populations.** `pymte.testdata` rounds the population multipliers
+  to the nearest integer where R truncates; the shipped fixtures show the
+  populations are identical row for row.

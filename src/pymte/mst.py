@@ -337,6 +337,10 @@ def gmm_estimate(
         )
     if redundant is None:
         # Drop moments whose residuals are collinear, as the R package does.
+        # The test vector is drawn from a fixed generator so the choice does
+        # not depend on the user's seed; R draws it from the global stream
+        # and, when the null space has more than one dimension, may drop a
+        # different moment.
         rng = np.random.default_rng(0)
         resid = ys - gs @ rng.normal(size=j)
         omega = resid.T @ resid / n
