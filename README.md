@@ -2,6 +2,8 @@
 
 Instrumental variables and marginal treatment effects in Python.
 
+Documentation: https://pymte.readthedocs.io
+
 `pymte` estimates treatment parameters such as the ATE, ATT or a policy relevant treatment effect from instrumental variables data, using the marginal treatment effect (MTE) framework of Heckman and Vytlacil (2005) and the moment-based implementation of Mogstad, Santos and Torgovitsky (2018). The user specifies parametric or nonparametric (spline) marginal treatment response functions, optional shape restrictions such as boundedness or monotonicity, and a set of IV-like estimands. The package returns either a point estimate (when the model is point identified) or sharp bounds obtained by linear or quadratically constrained programming, together with bootstrap confidence intervals and specification tests.
 
 This package is a port of the R package [`ivmte`](https://github.com/jkcshea/ivmte) by Joshua Shea and Alexander Torgovitsky, released under the GPL-3. It reproduces the R package's estimands, options and numerical results; the API follows Python conventions.
