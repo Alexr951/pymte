@@ -18,6 +18,19 @@ jobs:
       - run: ruff format --check .
       - run: mypy
 
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+      - run: pip install dist/*.whl
+      - run: python -c "import pymte; print(pymte.__version__)"
+
   test:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -36,7 +49,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install ".[dev,plots]"
-      - run: pytest -m "not oracle_live"
+      - run: pytest
 
   docs:
     runs-on: ubuntu-latest

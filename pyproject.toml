@@ -100,6 +100,5 @@ follow_imports = "skip"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "oracle_live: compares against a live R run; requires Rscript and the R ivmte package",
     "slow: takes more than a few seconds",
 ]

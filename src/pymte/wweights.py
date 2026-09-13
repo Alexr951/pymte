@@ -97,7 +97,7 @@ def wlate1(
         Covariate values to condition on, e.g. ``{"x": 2}``.
     avglate : bool, default False
         Use the pointwise multiplier ``1 / |p_i(to) - p_i(from)|`` (the R
-        target ``avglate``) instead of ``1 / |E[p(to)] - E[p(from)]]|``.
+        target ``avglate``) instead of ``1 / |E[p(to)] - E[p(from)]|``.
 
     Returns
     -------

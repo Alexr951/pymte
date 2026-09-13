@@ -788,16 +788,20 @@ class IVMTEResult:
     def summary(self) -> str:
         """Return a text summary in the style of R's ``summary.ivmte``.
 
-        As in R, a warning is issued when either bound problem did not
-        finish with an optimal status.
+        A warning is issued when the criterion or either bound problem did
+        not finish with an optimal status (R warns for the bound problems).
         """
         s0, s1 = self.specs
         lines = []
         if self.bounds is not None:
             assert self.audit is not None
             notes = [
-                f"{side} bound optimization status is {status_string(self.audit.status[key])}."
-                for side, key in (("Lower", "min"), ("Upper", "max"))
+                f"{what} optimization status is {status_string(self.audit.status[key])}."
+                for what, key in (
+                    ("Criterion", "criterion"),
+                    ("Lower bound", "min"),
+                    ("Upper bound", "max"),
+                )
                 if self.audit.status[key] != 1
             ]
             if notes:

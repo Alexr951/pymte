@@ -12,7 +12,7 @@ $$
 D = \mathbf 1\{U \le p(X, Z)\}, \qquad U \mid X, Z \sim \text{Uniform}[0, 1],
 $$
 
-where $p(X, Z) = P(D = 1 \mid X, Z)$ is the propensity score and $U$ is the unobserved resistance to treatment: a unit takes treatment when its resistance is below the propensity score, so smaller values of $U$ mean a stronger latent willingness to be treated. The uniform distribution is a normalisation, not an assumption. The model maintains that $Z$ is independent of $(Y_0, Y_1, U)$ given $X$, which combines exogeneity of the instrument with the exclusion restriction. Vytlacil (2002) showed that under this independence the threshold-crossing rule is equivalent to the monotonicity condition of Imbens and Angrist (1994): a shift in the instrument moves every unit towards treatment or every unit away from it.
+where $p(X, Z) = P(D = 1 \mid X, Z)$ is the propensity score and $U$ is the unobserved resistance to treatment: a unit takes treatment when its resistance is below the propensity score, so smaller values of $U$ mean a stronger latent willingness to be treated. The uniform distribution is a normalisation with no empirical content, since $p(X, Z)$ absorbs the scale of $U$. The model maintains that $Z$ is independent of $(Y_0, Y_1, U)$ given $X$, which combines exogeneity of the instrument with the exclusion restriction. Vytlacil (2002) showed that under this independence the threshold-crossing rule is equivalent to the monotonicity condition of Imbens and Angrist (1994): a shift in the instrument moves every unit towards treatment or every unit away from it.
 
 ## From LATE to MTE
 

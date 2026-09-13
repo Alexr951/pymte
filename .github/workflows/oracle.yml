@@ -1,7 +1,7 @@
 name: R oracle
 
-# Re-runs the R reference implementation and compares it with the Python
-# results. This job is informational: it is skipped when R cannot be set up.
+# Regenerates the R reference fixtures with the current R package and runs
+# the parity tests against them. Informational: it never blocks a push.
 
 on:
   workflow_dispatch:
@@ -26,5 +26,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install ".[dev]"
-      - run: Rscript tests/fixtures/run_oracle.R tests/fixtures/live
-      - run: pytest -m oracle_live
+      - run: Rscript tests/fixtures/run_oracle.R tests/fixtures/oracle
+      - run: pytest tests/test_parity.py tests/test_moments.py tests/test_propensity.py tests/test_uspline.py tests/test_datasets.py tests/test_bootstrap.py

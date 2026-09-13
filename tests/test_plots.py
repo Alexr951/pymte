@@ -14,7 +14,7 @@ AE_ARGS = dict(
 
 @pytest.fixture(scope="module")
 def bounds_result():
-    return pymte.ivmte(pymte.load_ae(), m0="~ u + yob", m1="~ u + yob", **AE_ARGS)
+    return pymte.ivmte(pymte.load_ae(), m0="~ u + yob", m1="~ u + yob", seed=0, **AE_ARGS)
 
 
 @pytest.fixture(scope="module")
@@ -51,5 +51,5 @@ def test_plot_weights(bounds_result, point_result):
 def test_ivmte_accepts_term_lists():
     ae = pymte.load_ae()
     terms = [(0, None), (1, None), (0, "yob")]
-    r = pymte.ivmte(ae, m0=terms, m1=terms, **AE_ARGS)
+    r = pymte.ivmte(ae, m0=terms, m1=terms, seed=0, **AE_ARGS)
     assert r.bounds == pytest.approx((-0.1028836, -0.07818869), abs=1e-6)
