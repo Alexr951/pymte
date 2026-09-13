@@ -691,7 +691,8 @@ class IVMTEResult:
     levels : tuple of float
         Confidence levels.
     ci_type : str
-        Region reported by :meth:`summary` for bounds.
+        Region reported by :meth:`summary` for bounds (``"both"`` prints
+        the backward and the forward region).
     """
 
     target: str
@@ -761,10 +762,12 @@ class IVMTEResult:
         lines.append(f"Solver: {self.solver}")
         if self.bootstraps:
             if self.bounds_ci is not None:
-                lines.append(f"\nBootstrapped confidence intervals ({self.ci_type}):")
-                lines += _ci_lines(self.bounds_ci[self.ci_type])
-                if self.p_value is not None:
-                    lines.append(f"p-value: {fmt_result(self.p_value[self.ci_type])}")
+                kinds = ("backward", "forward") if self.ci_type == "both" else (self.ci_type,)
+                for kind in kinds:
+                    lines.append(f"\nBootstrapped confidence intervals ({kind}):")
+                    lines += _ci_lines(self.bounds_ci[kind])
+                    if self.p_value is not None:
+                        lines.append(f"p-value: {fmt_result(self.p_value[kind])}")
                 if self.specification_p_value is not None:
                     lines.append(
                         "Bootstrapped specification test p-value: "
@@ -1297,7 +1300,7 @@ def ivmte(
         Draw with replacement. ``False`` gives subsampling.
     levels : sequence of float
         Confidence levels.
-    ci_type : {"backward", "forward"}
+    ci_type : {"backward", "forward", "both"}
         Confidence region reported in the summary for bounds; both are
         computed.
     specification_test : bool, default True
@@ -1331,10 +1334,62 @@ def ivmte(
         raise ValueError("Custom targets need both 'target_weight0' and 'target_weight1'")
     if target is not None and target.lower() not in TARGETS:
         raise ValueError(f"target must be one of {TARGETS}, got {target!r}")
-    if ci_type not in ("backward", "forward"):
-        raise ValueError("ci_type must be 'backward' or 'forward'")
-    if bootstraps == 1:
-        raise ValueError("'bootstraps' must be 0 or at least 2")
+    if target is not None and target.lower() in ("late", "avglate"):
+        if not late_from or not late_to:
+            raise ValueError("Targets 'late' and 'avglate' need 'late_from' and 'late_to'")
+        if set(late_from) != set(late_to):
+            raise ValueError(
+                "The variables declared in 'late_to' and 'late_from' must be the same"
+            )
+        values = [*late_from.values(), *late_to.values()]
+        if not all(isinstance(v, int | float | np.number) for v in values):
+            raise ValueError("The values of 'late_from' and 'late_to' must be numeric")
+        if all(late_to[k] == late_from[k] for k in late_from):
+            raise ValueError("'late_to' must be different from 'late_from'")
+    if criterion_tol < 0:
+        raise ValueError("Cannot set 'criterion_tol' below 0")
+    for name, value, least in (
+        ("initgrid_nx", initgrid_nx, 0), ("initgrid_nu", initgrid_nu, 0), ("audit_nx", audit_nx, 1),
+        ("audit_nu", audit_nu, 0), ("audit_add", audit_add, 1), ("audit_max", audit_max, 1),
+    ):  # fmt: skip
+        if int(value) != value or value < least:
+            raise ValueError(f"'{name}' must be an integer greater than or equal to {least}")
+    if audit_tol < 0:
+        raise ValueError("'audit_tol' must be a positive scalar")
+    if audit_nx < initgrid_nx and initgrid_x is None:
+        raise ValueError("'audit_nx' must be larger than 'initgrid_nx'")
+    if audit_nu < initgrid_nu and initgrid_u is None:
+        raise ValueError("'audit_nu' must be larger than 'initgrid_nu'")
+    if int(bootstraps) != bootstraps or bootstraps < 0 or bootstraps == 1:
+        raise ValueError(
+            "'bootstraps' must either be 0, or be an integer greater than or equal to 2"
+        )
+    if bootstraps_m is not None:
+        if int(bootstraps_m) != bootstraps_m or bootstraps_m < 1:
+            raise ValueError("'bootstraps_m' must be an integer greater than or equal to 1")
+        if point:
+            warnings.warn(
+                "Argument 'bootstraps_m' is only used for partial identification, and will be "
+                "ignored under point identification.",
+                stacklevel=2,
+            )
+    if not levels or min(levels) <= 0 or max(levels) >= 1:
+        raise ValueError("'levels' must be a sequence of values strictly between 0 and 1")
+    levels = sorted(levels)
+    if ci_type not in ("backward", "forward", "both"):
+        raise ValueError("ci_type must be 'backward', 'forward' or 'both'")
+    if point_eyeweight and point is False:
+        warnings.warn(
+            "Argument 'point_eyeweight' is only used for point identification, and will be "
+            "ignored when point is False.",
+            stacklevel=2,
+        )
+    if point_eyeweight and outcome is not None:
+        warnings.warn(
+            "Argument 'point_eyeweight' is only used for point identification when IV-like "
+            "estimands are provided through the 'ivlike' argument, and will be ignored.",
+            stacklevel=2,
+        )
     if propensity.strip().startswith("~"):
         # R accepts a one-sided formula naming the propensity score column.
         propensity = options["propensity"] = propensity.strip()[1:].strip()
@@ -1364,10 +1419,22 @@ def ivmte(
             "Please rename that variable."
         )
     mtr_vars: set[str] = set()
+    has_u = False
     for m in (m0, m1):
-        mtr_vars |= formula_vars(m) if isinstance(m, str) else {c for _, c in m if c}
+        if isinstance(m, str):
+            mtr_vars |= formula_vars(m)
+            has_u = has_u or uname in formula_vars(m) or "uSpline" in m
+        else:
+            mtr_vars |= {c for _, c in m if c}
+            has_u = has_u or any(u != 0 for u, _ in m)
     if treat in mtr_vars:
         raise ValueError("Treatment variable cannot be included in the MTRs")
+    if not has_u and any((m0_inc, m0_dec, m1_inc, m1_dec, mte_inc, mte_dec)):
+        warnings.warn(
+            f"Neither 'm0' nor 'm1' contains the unobserved variable '{uname}'. Monotonicity "
+            "constraints only apply to the unobserved variable, so will be ignored.",
+            stacklevel=2,
+        )
     o = SimpleNamespace(**options)
     o.treat = treat
     o.ivlike = ivlike_list
@@ -1395,6 +1462,11 @@ def ivmte(
     for c in cols:
         if data[c].dtype == bool:
             data[c] = data[c].astype(int)
+    if data[treat].nunique() < 2:
+        raise ValueError(
+            "Estimation only uses the subsample of complete observations, in which there is "
+            f"no variation in the treatment variable, {treat}."
+        )
 
     # -- estimation ------------------------------------------------------------
     est = ivmte_estimate(data, o, rng, log)

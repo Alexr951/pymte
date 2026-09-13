@@ -129,7 +129,7 @@ def test_subsampling_and_argument_checks():
         bootstraps=4, bootstraps_m=1000, bootstraps_replace=False, seed=0,
     )  # fmt: skip
     assert r.bounds_bootstraps.shape == (4, 2)
-    with pytest.raises(ValueError, match="at least 2"):
+    with pytest.raises(ValueError, match="greater than or equal to 2"):
         pymte.ivmte(sim, ivlike="y ~ d + C(z)", target="ate", m0="~ u", m1="~ u",
                     propensity="d ~ C(z)", bootstraps=1)  # fmt: skip
     with pytest.raises(ValueError, match="cannot exceed"):
