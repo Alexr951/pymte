@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pymte"
-version = "1.0.1"
+version = "1.0.2"
 description = "Instrumental variables: extrapolation by marginal treatment effects"
 readme = "README.md"
 license = "GPL-3.0-only"
@@ -78,6 +78,7 @@ ignore = ["E501", "D105", "D107"]
 convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
+"src/pymte/__init__.py" = ["F401"]
 "tests/*" = ["D", "C408"]
 "docs/*" = ["D"]
 

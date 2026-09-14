@@ -41,8 +41,20 @@ def test_late_weights_warn_when_a_linear_score_is_clipped(datasets):
     sim = datasets["sim"]
     fit = propensity("d ~ z + x", sim, link="linear")
     with pytest.warns(UserWarning, match="greater than 1 set to 1"):
-        w = wlate1(fit, sim, {"z": 30}, {"z": 300})
+        w = wlate1(fit, sim, {"z": 3}, {"z": 5})
     assert w.ub.max() == 1.0
+
+
+def test_late_weights_raise_when_clipping_empties_the_interval(datasets):
+    from pymte.wweights import wlate1
+
+    sim = datasets["sim"]
+    fit = propensity("d ~ z + x", sim, link="linear")
+    with (
+        pytest.warns(UserWarning, match="greater than 1 set to 1"),
+        pytest.raises(ValueError, match="LATE interval is empty"),
+    ):
+        wlate1(fit, sim, {"z": 5}, {"z": 10})
 
 
 def test_supplied_column(datasets):

@@ -114,10 +114,14 @@ def wlate1(
     if (lb > 1).any() or (ub > 1).any():
         warnings.warn("Propensity scores greater than 1 set to 1.", stacklevel=2)
     lb, ub = np.clip(lb, 0.0, 1.0), np.clip(ub, 0.0, 1.0)
-    if avglate:
-        mult = 1.0 / np.abs(ub - lb)
-    else:
-        mult = np.full(n, 1.0 / abs(ub[rows].mean() - lb[rows].mean()))
+    width = np.abs(ub - lb) if avglate else np.full(n, abs(ub[rows].mean() - lb[rows].mean()))
+    if (width == 0).any():
+        raise ValueError(
+            "The propensity scores at 'late_from' and 'late_to' coincide after clipping to "
+            "[0, 1], so the LATE interval is empty. Choose instrument values whose propensity "
+            "scores differ or use a link that keeps the scores inside (0, 1)."
+        )
+    mult = 1.0 / width
     return TargetWeights(lb, ub, mult, rows)
 
 

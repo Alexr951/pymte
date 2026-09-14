@@ -31,4 +31,5 @@ migration
 datasets
 faq
 citing
+changelog
 ```

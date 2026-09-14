@@ -5,6 +5,11 @@ Alexander Torgovitsky. It implements the moment-based marginal treatment
 effect framework of Mogstad, Santos and Torgovitsky (2018) for point and
 partial identification of treatment parameters. The modules and functions
 follow the layout and the names of the R package.
+
+The public API is the set of names in ``__all__``: the estimator and its
+result, the MTR and propensity score specifications, the datasets and the
+plots. The remaining modules are the building blocks of the estimator; they
+stay importable but may change between minor versions.
 """
 
 from pymte.audit import audit, rhalton
@@ -42,33 +47,12 @@ __all__ = [
     "MTRSpec",
     "Propensity",
     "USpline",
-    "audit",
-    "bound",
-    "bound_ci",
-    "bound_pvalue",
-    "criterion_min",
-    "design",
-    "gen_gamma",
-    "gen_s_set",
-    "gen_target",
-    "gmm_estimate",
-    "iv_estimate",
     "ivmte",
-    "ivmte_estimate",
     "load_ae",
     "load_sim_data",
-    "lp_setup",
-    "lp_setup_bound",
-    "lp_setup_criterion",
-    "lp_setup_criterion_boot",
     "plot_mte",
     "plot_mtr",
     "plot_weights",
-    "polyparse",
     "propensity",
-    "qp_setup",
-    "qp_setup_bound",
-    "qp_setup_criterion",
-    "rhalton",
 ]
-__version__ = "1.0.1"
+__version__ = "1.0.2"

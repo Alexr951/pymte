@@ -1,6 +1,6 @@
 # API reference
 
-The modules and functions follow the R package: `mst` holds the estimator, `mtr` the MTR specifications, `wweights` and `sweights` the target and IV-like weights, `lp` the optimisation problems, `monobound` the shape restrictions and `audit` the audit procedure.
+The public API consists of the names below: the estimator and its result, the MTR and propensity score specifications, the datasets and the plots. These are the names exported by `pymte` and covered by semantic versioning.
 
 ## Estimation
 
@@ -13,7 +13,6 @@ The modules and functions follow the R package: `mst` holds the estimator, `mtr`
 
    ivmte
    IVMTEResult
-   ivmte_estimate
 ```
 
 ## Specifications and inputs
@@ -23,12 +22,10 @@ The modules and functions follow the R package: `mst` holds the estimator, `mtr`
    :toctree: generated
    :nosignatures:
 
-   polyparse
    MTRSpec
    USpline
    propensity.propensity
    Propensity
-   design
    load_ae
    load_sim_data
 ```
@@ -47,7 +44,7 @@ The modules and functions follow the R package: `mst` holds the estimator, `mtr`
 
 ## Building blocks
 
-The estimator is assembled from the following functions, which can be used on their own. The names are those of the R package in snake case.
+The estimator is assembled from the following functions, which follow the R package: `mst` holds the estimator, `mtr` the MTR specifications, `wweights` and `sweights` the target and IV-like weights, `lp` the optimisation problems, `monobound` the shape restrictions and `audit` the audit procedure. The names are those of the R package in snake case. They are importable from their modules and listed here for users of the R package, but they are not part of the public API and may change between minor versions.
 
 ```{eval-rst}
 .. currentmodule:: pymte
@@ -56,6 +53,8 @@ The estimator is assembled from the following functions, which can be used on th
    :toctree: generated
    :nosignatures:
 
+   mst.ivmte_estimate
+   mtr.polyparse
    mtr.gen_gamma
    mtr.gen_gamma_splines
    mst.gen_target
@@ -70,6 +69,7 @@ The estimator is assembled from the following functions, which can be used on th
    wweights.wlate1
    wweights.wgenlate1
    wweights.gen_weight
+   design.design
    ivlike.iv_estimate
    ivlike.piv
    sweights.olsj
