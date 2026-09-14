@@ -1,0 +1,3 @@
+pymte is Copyright (C) 2026 Alex Ronczewski and is licensed under the GNU General Public License, version 3. The full text of the licence is in the LICENSE file.
+
+pymte is a Python port of the R package ivmte (https://github.com/jkcshea/ivmte), which is Copyright (C) 2018-2024 Joshua Shea and Alexander Torgovitsky and is offered by its authors under GPL-2 or GPL-3. This port takes ivmte under version 3 of the licence. The module layout, the function names, the algorithms, the test suite, the synthetic test populations and the two datasets AE and ivmteSimData come from ivmte; src/pymte/data/PROVENANCE.md describes where the datasets came from.

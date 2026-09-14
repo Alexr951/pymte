@@ -1,7 +1,6 @@
 name: Release
 
-# Builds the package when a version tag is pushed and uploads it to PyPI
-# through trusted publishing (no API token is stored in the repository).
+# Builds the package when a version tag is pushed and uploads it to PyPI through trusted publishing.
 
 on:
   push:

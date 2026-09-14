@@ -71,6 +71,6 @@ BibTeX entries are in the documentation under "Citing". The `AE` dataset is deri
 
 ## Licence
 
-GPL-3.0-or-later. This package is a derivative work of the R package `ivmte` (Copyright Joshua Shea and Alexander Torgovitsky), distributed under the same licence. See `LICENSE` for the full text.
+GPL-3.0-only. This package is a derivative work of the R package `ivmte`, Copyright (C) 2018-2024 Joshua Shea and Alexander Torgovitsky, which its authors distribute under GPL-2 or GPL-3; this port takes it under version 3 and is distributed under the same version. See `LICENSE` for the licence text and `NOTICE` for the copyright notices.
 
 

@@ -63,4 +63,4 @@ The package itself has a Zenodo DOI, [10.5281/zenodo.22739131](https://doi.org/1
 
 ## Licence
 
-GPL-3.0-or-later, the licence of the R package this package derives from.
+GPL-3.0-only. The R package this package derives from is offered under GPL-2 or GPL-3; the port takes and passes on version 3. The copyright notices are in the `NOTICE` file of the repository.

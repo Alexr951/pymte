@@ -1,7 +1,6 @@
 name: R oracle
 
-# Regenerates the R reference fixtures with the current R package and runs
-# the parity tests against them. Informational: it never blocks a push.
+# Regenerates the R reference fixtures with the current R package and runs the parity tests against them.
 
 on:
   workflow_dispatch:
