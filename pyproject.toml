@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pymte"
-version = "1.0.0"
+version = "1.0.1"
 description = "Instrumental variables: extrapolation by marginal treatment effects"
 readme = "README.md"
 license = "GPL-3.0-only"
